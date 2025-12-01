@@ -56,16 +56,16 @@ api.interceptors.response.use(
 // ============ Auth APIs ============
 export const authAPI = {
   register: (username, password) =>
-    api.post('/api/auth/register', { username, password }),
+    api.post('/auth/register', { username, password }),
 
   login: (username, password) =>
-    api.post('/api/auth/login', { username, password }),
+    api.post('/auth/login', { username, password }),
 
   getCurrentUser: () =>
-    api.get('/api/auth/me'),
+    api.get('/auth/me'),
 
   changePassword: (oldPassword, newPassword) =>
-    api.post('/api/auth/change-password', null, {
+    api.post('/auth/change-password', null, {
       params: { old_password: oldPassword, new_password: newPassword }
     })
 }
@@ -77,7 +77,7 @@ export const examAPI = {
     const formData = new FormData()
     formData.append('title', title)
     formData.append('file', file)
-    return api.post('/api/exams/create', formData, {
+    return api.post('/exams/create', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
@@ -86,45 +86,45 @@ export const examAPI = {
   appendDocument: (examId, file) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post(`/api/exams/${examId}/append`, formData, {
+    return api.post(`/exams/${examId}/append`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
 
   // Get user's exam list
   getList: (skip = 0, limit = 20) =>
-    api.get('/api/exams/', { params: { skip, limit } }),
+    api.get('/exams/', { params: { skip, limit } }),
 
   // Get exam detail
   getDetail: (examId) =>
-    api.get(`/api/exams/${examId}`),
+    api.get(`/exams/${examId}`),
 
   // Delete exam
   delete: (examId) =>
-    api.delete(`/api/exams/${examId}`),
+    api.delete(`/exams/${examId}`),
 
   // Update quiz progress
   updateProgress: (examId, currentIndex) =>
-    api.put(`/api/exams/${examId}/progress`, { current_index: currentIndex })
+    api.put(`/exams/${examId}/progress`, { current_index: currentIndex })
 }
 
 // ============ Question APIs ============
 export const questionAPI = {
   // Get all questions for an exam
   getExamQuestions: (examId, skip = 0, limit = 50) =>
-    api.get(`/api/questions/exam/${examId}/questions`, { params: { skip, limit } }),
+    api.get(`/questions/exam/${examId}/questions`, { params: { skip, limit } }),
 
   // Get current question (based on exam's current_index)
   getCurrentQuestion: (examId) =>
-    api.get(`/api/questions/exam/${examId}/current`),
+    api.get(`/questions/exam/${examId}/current`),
 
   // Get question by ID
   getById: (questionId) =>
-    api.get(`/api/questions/${questionId}`),
+    api.get(`/questions/${questionId}`),
 
   // Check answer
   checkAnswer: (questionId, userAnswer) =>
-    api.post('/api/questions/check', {
+    api.post('/questions/check', {
       question_id: questionId,
       user_answer: userAnswer
     })
@@ -136,31 +136,31 @@ export const mistakeAPI = {
   getList: (skip = 0, limit = 50, examId = null) => {
     const params = { skip, limit }
     if (examId) params.exam_id = examId
-    return api.get('/api/mistakes/', { params })
+    return api.get('/mistakes/', { params })
   },
 
   // Add to mistake book
   add: (questionId) =>
-    api.post('/api/mistakes/add', { question_id: questionId }),
+    api.post('/mistakes/add', { question_id: questionId }),
 
   // Remove from mistake book by mistake ID
   remove: (mistakeId) =>
-    api.delete(`/api/mistakes/${mistakeId}`),
+    api.delete(`/mistakes/${mistakeId}`),
 
   // Remove from mistake book by question ID
   removeByQuestionId: (questionId) =>
-    api.delete(`/api/mistakes/question/${questionId}`)
+    api.delete(`/mistakes/question/${questionId}`)
 }
 
 // ============ Admin APIs ============
 export const adminAPI = {
   // Get system config
   getConfig: () =>
-    api.get('/api/admin/config'),
+    api.get('/admin/config'),
 
   // Update system config
   updateConfig: (config) =>
-    api.put('/api/admin/config', config)
+    api.put('/admin/config', config)
 }
 
 export default api
