@@ -8,7 +8,7 @@ echo    QQuiz Frontend - 本地启动
 echo ==========================================
 echo.
 
-cd /d "%~dp0frontend"
+cd /d "%~dp0..\frontend"
 
 REM 检查 node_modules 是否存在
 if not exist "node_modules" (

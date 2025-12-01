@@ -13,7 +13,8 @@ from schemas import (
     AnswerSubmit, AnswerCheckResponse
 )
 from services.auth_service import get_current_user
-from services.llm_service import llm_service
+from services.llm_service import LLMService
+from services.config_service import load_llm_config
 
 router = APIRouter()
 
@@ -177,6 +178,10 @@ async def check_answer(
 
     # Check answer based on question type
     if question.type == QuestionType.SHORT:
+        # Load LLM configuration from database
+        llm_config = await load_llm_config(db)
+        llm_service = LLMService(config=llm_config)
+
         # Use AI to grade short answer
         grading = await llm_service.grade_short_answer(
             question.content,

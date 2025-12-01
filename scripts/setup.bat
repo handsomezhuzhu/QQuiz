@@ -1,11 +1,11 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo Creating .env configuration file...
 echo.
 
 (
-echo DATABASE_URL=postgresql+asyncpg://qquiz:qquiz_password@localhost:5432/qquiz_db
+echo DATABASE_URL=mysql+aiomysql://qquiz:qquiz_password@localhost:3306/qquiz_db
 echo SECRET_KEY=qquiz-secret-key-for-development-change-in-production-32chars
 echo AI_PROVIDER=openai
 echo OPENAI_API_KEY=sk-your-openai-api-key-here

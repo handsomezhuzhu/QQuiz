@@ -45,6 +45,15 @@ class SystemConfigUpdate(BaseModel):
     max_upload_size_mb: Optional[int] = None
     max_daily_uploads: Optional[int] = None
     ai_provider: Optional[str] = None
+    # API Configuration
+    openai_api_key: Optional[str] = None
+    openai_base_url: Optional[str] = None
+    openai_model: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    anthropic_model: Optional[str] = None
+    qwen_api_key: Optional[str] = None
+    qwen_base_url: Optional[str] = None
+    qwen_model: Optional[str] = None
 
 
 class SystemConfigResponse(BaseModel):
@@ -52,6 +61,15 @@ class SystemConfigResponse(BaseModel):
     max_upload_size_mb: int
     max_daily_uploads: int
     ai_provider: str
+    # API Configuration
+    openai_api_key: Optional[str] = None
+    openai_base_url: Optional[str] = None
+    openai_model: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    anthropic_model: Optional[str] = None
+    qwen_api_key: Optional[str] = None
+    qwen_base_url: Optional[str] = None
+    qwen_model: Optional[str] = None
 
 
 # ============ Exam Schemas ============

@@ -15,28 +15,53 @@ from utils import calculate_content_hash
 class LLMService:
     """Service for interacting with various LLM providers"""
 
-    def __init__(self):
-        self.provider = os.getenv("AI_PROVIDER", "openai")
+    def __init__(self, config: Optional[Dict[str, str]] = None):
+        """
+        Initialize LLM Service with optional configuration.
+        If config is not provided, falls back to environment variables.
+
+        Args:
+            config: Dictionary with keys like 'ai_provider', 'openai_api_key', etc.
+        """
+        # Get provider from config or environment
+        self.provider = (config or {}).get("ai_provider") or os.getenv("AI_PROVIDER", "openai")
 
         if self.provider == "openai":
+            api_key = (config or {}).get("openai_api_key") or os.getenv("OPENAI_API_KEY")
+            base_url = (config or {}).get("openai_base_url") or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            self.model = (config or {}).get("openai_model") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+            if not api_key:
+                raise ValueError("OpenAI API key not configured")
+
             self.client = AsyncOpenAI(
-                api_key=os.getenv("OPENAI_API_KEY"),
-                base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+                api_key=api_key,
+                base_url=base_url
             )
-            self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
         elif self.provider == "anthropic":
+            api_key = (config or {}).get("anthropic_api_key") or os.getenv("ANTHROPIC_API_KEY")
+            self.model = (config or {}).get("anthropic_model") or os.getenv("ANTHROPIC_MODEL", "claude-3-haiku-20240307")
+
+            if not api_key:
+                raise ValueError("Anthropic API key not configured")
+
             self.client = AsyncAnthropic(
-                api_key=os.getenv("ANTHROPIC_API_KEY")
+                api_key=api_key
             )
-            self.model = os.getenv("ANTHROPIC_MODEL", "claude-3-haiku-20240307")
 
         elif self.provider == "qwen":
+            api_key = (config or {}).get("qwen_api_key") or os.getenv("QWEN_API_KEY")
+            base_url = (config or {}).get("qwen_base_url") or os.getenv("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+            self.model = (config or {}).get("qwen_model") or os.getenv("QWEN_MODEL", "qwen-plus")
+
+            if not api_key:
+                raise ValueError("Qwen API key not configured")
+
             self.client = AsyncOpenAI(
-                api_key=os.getenv("QWEN_API_KEY"),
-                base_url=os.getenv("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+                api_key=api_key,
+                base_url=base_url
             )
-            self.model = os.getenv("QWEN_MODEL", "qwen-plus")
 
         else:
             raise ValueError(f"Unsupported AI provider: {self.provider}")

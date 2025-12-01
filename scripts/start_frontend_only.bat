@@ -8,7 +8,7 @@ echo   Starting QQuiz Frontend Server
 echo ========================================
 echo.
 
-cd /d "%~dp0frontend"
+cd /d "%~dp0..\frontend"
 
 if not exist "node_modules" (
     echo Installing dependencies (first time only)...

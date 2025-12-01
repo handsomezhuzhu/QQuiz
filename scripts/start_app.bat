@@ -8,7 +8,7 @@ echo   QQuiz - Auto Deploy Script
 echo ========================================
 echo.
 
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM Check if .env exists
 if not exist ".env" (
@@ -40,17 +40,13 @@ if %errorlevel% neq 0 (
 echo OK - Node.js installed
 echo.
 
-echo [3/7] Creating PostgreSQL database...
+echo [3/7] Creating MySQL database...
 echo.
-echo Please enter PostgreSQL admin password when prompted
-echo (Default password is usually: postgres)
+echo Please enter MySQL root password when prompted
+echo (Leave blank if no password set)
 echo.
 
-set PGPASSWORD=postgres
-psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS qquiz_db;" 2>nul
-psql -U postgres -h localhost -c "DROP USER IF EXISTS qquiz;" 2>nul
-psql -U postgres -h localhost -c "CREATE USER qquiz WITH PASSWORD 'qquiz_password';" 2>nul
-psql -U postgres -h localhost -c "CREATE DATABASE qquiz_db OWNER qquiz;" 2>nul
+mysql -u root -p -e "DROP DATABASE IF EXISTS qquiz_db; DROP USER IF EXISTS 'qquiz'@'localhost'; CREATE DATABASE qquiz_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER 'qquiz'@'localhost' IDENTIFIED BY 'qquiz_password'; GRANT ALL PRIVILEGES ON qquiz_db.* TO 'qquiz'@'localhost'; FLUSH PRIVILEGES;" 2>nul
 
 echo Database setup complete
 echo.
@@ -88,11 +84,11 @@ echo.
 echo [7/7] Starting services...
 echo.
 
-start "QQuiz Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && echo Backend API: http://localhost:8000 && echo API Docs: http://localhost:8000/docs && echo. && uvicorn main:app --reload"
+start "QQuiz Backend" cmd /k "cd /d %~dp0..\backend && call venv\Scripts\activate.bat && echo Backend API: http://localhost:8000 && echo API Docs: http://localhost:8000/docs && echo. && uvicorn main:app --reload"
 
 timeout /t 5 /nobreak >nul
 
-start "QQuiz Frontend" cmd /k "cd /d %~dp0frontend && echo Frontend: http://localhost:3000 && echo. && npm start"
+start "QQuiz Frontend" cmd /k "cd /d %~dp0..\frontend && echo Frontend: http://localhost:3000 && echo. && npm start"
 
 timeout /t 3 /nobreak >nul
 

@@ -17,7 +17,8 @@ from schemas import (
 )
 from services.auth_service import get_current_user
 from services.document_parser import document_parser
-from services.llm_service import llm_service
+from services.llm_service import LLMService
+from services.config_service import load_llm_config
 from utils import is_allowed_file, calculate_content_hash
 
 router = APIRouter()
@@ -150,6 +151,10 @@ async def async_parse_and_save(
 
             if not text_content or len(text_content.strip()) < 10:
                 raise Exception("Document appears to be empty or too short")
+
+            # Load LLM configuration from database
+            llm_config = await load_llm_config(db)
+            llm_service = LLMService(config=llm_config)
 
             # Parse questions using LLM
             print(f"[Exam {exam_id}] Calling LLM to extract questions...")

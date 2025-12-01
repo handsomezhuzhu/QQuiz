@@ -8,7 +8,7 @@ echo   QQuiz - Starting with Docker DB
 echo ========================================
 echo.
 
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo [1/4] Checking Docker...
 docker --version >nul 2>&1
@@ -21,31 +21,32 @@ if %errorlevel% neq 0 (
 echo OK - Docker installed
 echo.
 
-echo [2/4] Starting PostgreSQL in Docker...
-docker-compose up -d postgres
+echo [2/4] Starting MySQL in Docker...
+docker-compose up -d mysql
 
 if %errorlevel% neq 0 (
-    echo ERROR: Failed to start PostgreSQL
+    echo ERROR: Failed to start MySQL
     echo Try: docker-compose down
     echo Then run this script again
     pause
     exit /b 1
 )
 
-echo OK - PostgreSQL started
+echo OK - MySQL started
 echo Waiting for database to be ready...
-timeout /t 5 /nobreak >nul
+echo.
+timeout /t 10 /nobreak >nul
 echo.
 
 echo [3/4] Starting Backend...
-start "QQuiz Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && echo ======================================== && echo   QQuiz Backend Server && echo ======================================== && echo. && echo API: http://localhost:8000 && echo Docs: http://localhost:8000/docs && echo. && alembic upgrade head && echo. && uvicorn main:app --reload"
+start "QQuiz Backend" cmd /k "cd /d %~dp0..backend && call venv\Scripts\activate.bat && echo ======================================== && echo   QQuiz Backend Server && echo ======================================== && echo. && echo API: http://localhost:8000 && echo Docs: http://localhost:8000/docs && echo. && alembic upgrade head && echo. && uvicorn main:app --reload"
 
 echo Waiting for backend to start...
 timeout /t 8 /nobreak >nul
 echo.
 
 echo [4/4] Starting Frontend...
-start "QQuiz Frontend" cmd /k "cd /d %~dp0frontend && echo ======================================== && echo   QQuiz Frontend Server && echo ======================================== && echo. && echo URL: http://localhost:3000 && echo. && npm start"
+start "QQuiz Frontend" cmd /k "cd /d %~dp0..frontend && echo ======================================== && echo   QQuiz Frontend Server && echo ======================================== && echo. && echo URL: http://localhost:3000 && echo. && npm start"
 
 echo.
 echo ========================================

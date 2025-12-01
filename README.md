@@ -39,21 +39,32 @@ docker-compose up -d
 #### 前置要求
 - Python 3.11+
 - Node.js 18+
-- PostgreSQL 15+
+- MySQL 8.0+ 或 Docker (用于运行 MySQL)
 
+**Windows 用户:**
+```bash
+# 双击运行以下脚本之一：
+scripts\fix_and_start.bat          # 推荐：自动修复并启动（支持 Docker/本地数据库）
+scripts\start_with_docker_db.bat   # 使用 Docker 数据库启动
+scripts\setup.bat                   # 仅配置环境变量
+```
+
+**Linux/macOS 用户:**
 ```bash
 # 1. 配置环境变量
 cp .env.example .env
 # 编辑 .env，修改 DATABASE_URL 为本地数据库地址
 
-# 2. 启动 PostgreSQL
-# macOS: brew services start postgresql
-# Linux: sudo systemctl start postgresql
+# 2. 启动 MySQL
+# macOS: brew services start mysql
+# Linux: sudo systemctl start mysql
 
 # 3. 运行启动脚本
-chmod +x run_local.sh
-./run_local.sh
+chmod +x scripts/run_local.sh
+./scripts/run_local.sh
 ```
+
+**MySQL 安装指南：** 详见 [docs/MYSQL_SETUP.md](docs/MYSQL_SETUP.md)
 
 ## 默认账户
 
@@ -69,23 +80,35 @@ chmod +x run_local.sh
 QQuiz/
 ├── backend/              # FastAPI 后端
 │   ├── alembic/          # 数据库迁移
-│   ├── routers/          # API 路由 (Step 2)
-│   ├── services/         # 业务逻辑 (Step 2)
-│   ├── models.py         # 数据模型 ✅
-│   ├── database.py       # 数据库配置 ✅
-│   ├── main.py           # 应用入口 ✅
-│   └── requirements.txt  # Python 依赖 ✅
+│   ├── routers/          # API 路由
+│   ├── services/         # 业务逻辑
+│   ├── models.py         # 数据模型
+│   ├── database.py       # 数据库配置
+│   ├── main.py           # 应用入口
+│   └── requirements.txt  # Python 依赖
 ├── frontend/             # React 前端
 │   ├── src/
-│   │   ├── api/          # API 客户端 (Step 3)
-│   │   ├── pages/        # 页面组件 (Step 4)
-│   │   ├── components/   # 通用组件 (Step 4)
-│   │   └── App.jsx       # 应用入口 ✅
-│   ├── package.json      # Node 依赖 ✅
-│   └── vite.config.js    # Vite 配置 ✅
-├── docker-compose.yml    # Docker 编排 ✅
-├── .env.example          # 环境变量模板 ✅
-└── run_local.sh          # 本地运行脚本 ✅
+│   │   ├── api/          # API 客户端
+│   │   ├── pages/        # 页面组件
+│   │   ├── components/   # 通用组件
+│   │   └── App.jsx       # 应用入口
+│   ├── package.json      # Node 依赖
+│   └── vite.config.js    # Vite 配置
+├── scripts/              # 部署和启动脚本
+│   ├── fix_and_start.bat           # Windows 快速启动（推荐）
+│   ├── start_with_docker_db.bat    # Docker 数据库启动
+│   ├── setup.bat                    # 环境配置脚本
+│   └── run_local.sh                 # Linux/macOS 启动脚本
+├── docs/                 # 文档目录
+│   ├── QUICK_START.md              # 快速入门指南
+│   ├── WINDOWS_DEPLOYMENT.md       # Windows 部署指南
+│   ├── DOCKER_MIRROR_SETUP.md      # Docker 镜像加速配置
+│   └── PROJECT_STRUCTURE.md        # 项目架构详解
+├── test_data/            # 测试数据
+│   └── sample_questions.txt        # 示例题目
+├── docker-compose.yml    # Docker 编排
+├── .env.example          # 环境变量模板
+└── README.md             # 项目说明
 ```
 
 ## 核心业务流程
@@ -128,9 +151,10 @@ QQuiz/
 
 **后端:**
 - FastAPI - 现代化 Python Web 框架
-- SQLAlchemy - ORM
+- SQLAlchemy 2.0 - 异步 ORM
 - Alembic - 数据库迁移
-- PostgreSQL - 数据库
+- MySQL 8.0 - 数据库
+- aiomysql - MySQL 异步驱动
 - Pydantic - 数据验证
 
 **前端:**

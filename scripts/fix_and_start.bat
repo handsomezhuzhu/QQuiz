@@ -8,7 +8,7 @@ echo   QQuiz - Automatic Fix and Start
 echo ========================================
 echo.
 
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM Check if .env exists
 if not exist ".env" (
@@ -50,28 +50,28 @@ if %errorlevel% equ 1 (
         exit /b 1
     )
 
-    echo Starting PostgreSQL in Docker...
-    docker-compose up -d postgres
+    echo Starting MySQL in Docker...
+    docker-compose up -d mysql
 
     if %errorlevel% neq 0 (
         echo.
         echo Docker failed to start. Trying to fix...
         docker-compose down
-        docker-compose up -d postgres
+        docker-compose up -d mysql
     )
 
     echo Waiting for database...
-    timeout /t 8 /nobreak >nul
+    timeout /t 10 /nobreak >nul
 
 ) else (
     echo.
-    echo Using Local PostgreSQL...
+    echo Using Local MySQL...
     echo.
-    echo Make sure PostgreSQL is running on port 5432
+    echo Make sure MySQL is running on port 3306
     echo.
     echo If you see connection errors, you need to:
-    echo 1. Start PostgreSQL service
-    echo 2. Or install PostgreSQL from https://www.postgresql.org/download/
+    echo 1. Start MySQL service
+    echo 2. Or install MySQL from https://dev.mysql.com/downloads/installer/
     echo 3. Or choose option 1 to use Docker instead
     echo.
     pause
@@ -111,11 +111,11 @@ echo.
 echo Starting services...
 echo.
 
-start "QQuiz Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && echo Backend: http://localhost:8000 && echo Docs: http://localhost:8000/docs && echo. && uvicorn main:app --reload"
+start "QQuiz Backend" cmd /k "cd /d %~dp0..backend && call venv\Scripts\activate.bat && echo Backend: http://localhost:8000 && echo Docs: http://localhost:8000/docs && echo. && uvicorn main:app --reload"
 
 timeout /t 8 /nobreak >nul
 
-start "QQuiz Frontend" cmd /k "cd /d %~dp0frontend && echo Frontend: http://localhost:3000 && echo. && npm start"
+start "QQuiz Frontend" cmd /k "cd /d %~dp0..frontend && echo Frontend: http://localhost:3000 && echo. && npm start"
 
 echo.
 echo ========================================

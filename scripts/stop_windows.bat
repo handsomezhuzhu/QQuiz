@@ -2,6 +2,8 @@
 chcp 65001 >nul
 title QQuiz - 停止服务
 
+cd /d "%~dp0.."
+
 echo.
 echo ==========================================
 echo    停止 QQuiz 服务

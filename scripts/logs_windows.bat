@@ -2,6 +2,8 @@
 chcp 65001 >nul
 title QQuiz - 查看日志
 
+cd /d "%~dp0.."
+
 echo.
 echo ==========================================
 echo    QQuiz 服务日志

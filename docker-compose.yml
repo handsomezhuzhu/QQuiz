@@ -1,17 +1,19 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: qquiz_postgres
+  mysql:
+    image: mysql:8.0
+    container_name: qquiz_mysql
     environment:
-      POSTGRES_USER: qquiz
-      POSTGRES_PASSWORD: qquiz_password
-      POSTGRES_DB: qquiz_db
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: qquiz_db
+      MYSQL_USER: qquiz
+      MYSQL_PASSWORD: qquiz_password
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     ports:
-      - "5432:5432"
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U qquiz"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "qquiz", "-pqquiz_password"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +24,7 @@ services:
       dockerfile: Dockerfile
     container_name: qquiz_backend
     environment:
-      - DATABASE_URL=postgresql+asyncpg://qquiz:qquiz_password@postgres:5432/qquiz_db
+      - DATABASE_URL=mysql+aiomysql://qquiz:qquiz_password@mysql:3306/qquiz_db
     env_file:
       - .env
     volumes:
@@ -31,7 +33,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -46,11 +48,11 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
     command: npm start
 
 volumes:
-  postgres_data:
+  mysql_data:
   upload_files:

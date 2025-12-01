@@ -8,7 +8,7 @@ echo    QQuiz Backend - 本地启动
 echo ==========================================
 echo.
 
-cd /d "%~dp0backend"
+cd /d "%~dp0..\backend"
 
 REM 检查虚拟环境是否存在
 if not exist "venv\Scripts\activate.bat" (

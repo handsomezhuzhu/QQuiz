@@ -24,11 +24,26 @@ async def get_system_config(
     result = await db.execute(select(SystemConfig))
     configs = {config.key: config.value for config in result.scalars().all()}
 
+    # Mask API keys (show only first 10 and last 4 characters)
+    def mask_api_key(key):
+        if not key or len(key) < 20:
+            return key
+        return f"{key[:10]}...{key[-4:]}"
+
     return {
         "allow_registration": configs.get("allow_registration", "true").lower() == "true",
         "max_upload_size_mb": int(configs.get("max_upload_size_mb", "10")),
         "max_daily_uploads": int(configs.get("max_daily_uploads", "20")),
-        "ai_provider": configs.get("ai_provider", "openai")
+        "ai_provider": configs.get("ai_provider", "openai"),
+        # API Configuration
+        "openai_api_key": mask_api_key(configs.get("openai_api_key")),
+        "openai_base_url": configs.get("openai_base_url", "https://api.openai.com/v1"),
+        "openai_model": configs.get("openai_model", "gpt-4o-mini"),
+        "anthropic_api_key": mask_api_key(configs.get("anthropic_api_key")),
+        "anthropic_model": configs.get("anthropic_model", "claude-3-haiku-20240307"),
+        "qwen_api_key": mask_api_key(configs.get("qwen_api_key")),
+        "qwen_base_url": configs.get("qwen_base_url", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        "qwen_model": configs.get("qwen_model", "qwen-plus")
     }
 
 

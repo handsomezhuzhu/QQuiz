@@ -8,7 +8,7 @@ echo    推送 QQuiz 到 GitHub
 echo ==========================================
 echo.
 
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM 检查是否有远程仓库
 git remote -v | findstr "origin" >nul
@@ -48,7 +48,7 @@ echo [重要] 如果是首次推送，需要输入 GitHub 认证：
 echo   Username: handsomezhuzhu
 echo   Password: 使用 Personal Access Token (不是密码!)
 echo.
-echo 如何获取 Token: 参考 GITHUB_PUSH_GUIDE.md
+echo 如何获取 Token: 参考 docs/GITHUB_PUSH_GUIDE.md
 echo.
 pause
 
@@ -74,7 +74,7 @@ if %errorlevel% equ 0 (
     echo 3. 网络连接问题
     echo.
     echo 解决方案：
-    echo 1. 阅读 GITHUB_PUSH_GUIDE.md 配置认证
+    echo 1. 阅读 docs/GITHUB_PUSH_GUIDE.md 配置认证
     echo 2. 确认 Personal Access Token 有效
     echo 3. 检查网络连接
     echo.

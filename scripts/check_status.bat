@@ -1,6 +1,8 @@
 @echo off
 title QQuiz - System Status Check
 
+cd /d "%~dp0.."
+
 echo.
 echo ========================================
 echo   QQuiz System Status Check

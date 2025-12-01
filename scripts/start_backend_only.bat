@@ -8,7 +8,7 @@ echo   Starting QQuiz Backend Server
 echo ========================================
 echo.
 
-cd /d "%~dp0backend"
+cd /d "%~dp0..\backend"
 
 if not exist "venv\Scripts\activate.bat" (
     echo Creating virtual environment...

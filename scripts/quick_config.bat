@@ -8,7 +8,7 @@ echo    QQuiz 快速配置
 echo ==========================================
 echo.
 
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM 创建 .env 文件
 echo 正在创建配置文件...
@@ -51,6 +51,6 @@ pause >nul
 notepad .env
 
 echo.
-echo 配置完成！现在可以运行 auto_setup_and_run.bat 启动系统
+echo 配置完成！现在可以运行 scripts\auto_setup_and_run.bat 启动系统
 echo.
 pause

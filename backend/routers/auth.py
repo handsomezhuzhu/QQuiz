@@ -83,8 +83,11 @@ async def login(
 
     # Create access token
     access_token = create_access_token(
-        data={"sub": user.id}
+        data={"sub": str(user.id)}  # JWT 'sub' must be a string
     )
+
+    print(f"✅ Login successful: user={user.username}, id={user.id}")
+    print(f"🔑 Generated token (first 50 chars): {access_token[:50]}...")
 
     return {
         "access_token": access_token,

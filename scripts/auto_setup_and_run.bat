@@ -17,7 +17,7 @@ echo    全自动部署脚本
 echo ==========================================
 echo.
 
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM ============================================
 REM 步骤 1: 检查环境
@@ -197,7 +197,7 @@ REM ============================================
 echo [7/8] 启动后端服务...
 echo.
 
-start "QQuiz Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && echo ======================================== && echo    QQuiz 后端服务 && echo ======================================== && echo. && echo API 地址: http://localhost:8000 && echo API 文档: http://localhost:8000/docs && echo. && echo 按 Ctrl+C 停止服务 && echo. && uvicorn main:app --reload"
+start "QQuiz Backend" cmd /k "cd /d %~dp0..\backend && call venv\Scripts\activate.bat && echo ======================================== && echo    QQuiz 后端服务 && echo ======================================== && echo. && echo API 地址: http://localhost:8000 && echo API 文档: http://localhost:8000/docs && echo. && echo 按 Ctrl+C 停止服务 && echo. && uvicorn main:app --reload"
 
 echo   ✓ 后端服务已在新窗口中启动
 echo   等待服务启动...
@@ -210,7 +210,7 @@ REM ============================================
 echo [8/8] 启动前端服务...
 echo.
 
-start "QQuiz Frontend" cmd /k "cd /d %~dp0frontend && echo ======================================== && echo    QQuiz 前端服务 && echo ======================================== && echo. && echo 前端地址: http://localhost:3000 && echo. && echo 按 Ctrl+C 停止服务 && echo. && npm start"
+start "QQuiz Frontend" cmd /k "cd /d %~dp0..\frontend && echo ======================================== && echo    QQuiz 前端服务 && echo ======================================== && echo. && echo 前端地址: http://localhost:3000 && echo. && echo 按 Ctrl+C 停止服务 && echo. && npm start"
 
 echo   ✓ 前端服务已在新窗口中启动
 echo   等待服务启动...
