@@ -1,6 +1,7 @@
 {
   "name": "qquiz-frontend",
   "version": "1.0.0",
+  "type": "module",
   "description": "QQuiz Frontend - React Application",
   "private": true,
   "dependencies": {
