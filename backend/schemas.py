@@ -1,0 +1,160 @@
+"""
+Pydantic Schemas for Request/Response Validation
+"""
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List
+from datetime import datetime
+from models import ExamStatus, QuestionType
+
+
+# ============ Auth Schemas ============
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=6)
+
+    @validator('username')
+    def username_alphanumeric(cls, v):
+        if not v.replace('_', '').replace('-', '').isalnum():
+            raise ValueError('Username must be alphanumeric (allows _ and -)')
+        return v
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    is_admin: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ============ System Config Schemas ============
+class SystemConfigUpdate(BaseModel):
+    allow_registration: Optional[bool] = None
+    max_upload_size_mb: Optional[int] = None
+    max_daily_uploads: Optional[int] = None
+    ai_provider: Optional[str] = None
+
+
+class SystemConfigResponse(BaseModel):
+    allow_registration: bool
+    max_upload_size_mb: int
+    max_daily_uploads: int
+    ai_provider: str
+
+
+# ============ Exam Schemas ============
+class ExamCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+
+
+class ExamResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    status: ExamStatus
+    current_index: int
+    total_questions: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ExamListResponse(BaseModel):
+    exams: List[ExamResponse]
+    total: int
+
+
+class ExamUploadResponse(BaseModel):
+    exam_id: int
+    title: str
+    status: str
+    message: str
+
+
+class ParseResult(BaseModel):
+    """Result from file parsing"""
+    total_parsed: int
+    duplicates_removed: int
+    new_added: int
+    message: str
+
+
+# ============ Question Schemas ============
+class QuestionBase(BaseModel):
+    content: str
+    type: QuestionType
+    options: Optional[List[str]] = None
+    answer: str
+    analysis: Optional[str] = None
+
+
+class QuestionCreate(QuestionBase):
+    exam_id: int
+
+
+class QuestionResponse(QuestionBase):
+    id: int
+    exam_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class QuestionListResponse(BaseModel):
+    questions: List[QuestionResponse]
+    total: int
+
+
+# ============ Quiz Schemas ============
+class AnswerSubmit(BaseModel):
+    question_id: int
+    user_answer: str
+
+
+class AnswerCheckResponse(BaseModel):
+    correct: bool
+    user_answer: str
+    correct_answer: str
+    analysis: Optional[str] = None
+    ai_score: Optional[float] = None  # For short answer questions
+    ai_feedback: Optional[str] = None  # For short answer questions
+
+
+class QuizProgressUpdate(BaseModel):
+    current_index: int
+
+
+# ============ Mistake Schemas ============
+class MistakeAdd(BaseModel):
+    question_id: int
+
+
+class MistakeResponse(BaseModel):
+    id: int
+    user_id: int
+    question_id: int
+    question: QuestionResponse
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MistakeListResponse(BaseModel):
+    mistakes: List[MistakeResponse]
+    total: int
