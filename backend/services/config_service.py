@@ -26,7 +26,7 @@ async def load_llm_config(db: AsyncSession) -> Dict[str, str]:
 
     # Build configuration dictionary
     config = {
-        'ai_provider': db_configs.get('ai_provider', 'openai'),
+        'ai_provider': db_configs.get('ai_provider', 'gemini'),
         # OpenAI
         'openai_api_key': db_configs.get('openai_api_key'),
         'openai_base_url': db_configs.get('openai_base_url', 'https://api.openai.com/v1'),
@@ -37,7 +37,11 @@ async def load_llm_config(db: AsyncSession) -> Dict[str, str]:
         # Qwen
         'qwen_api_key': db_configs.get('qwen_api_key'),
         'qwen_base_url': db_configs.get('qwen_base_url', 'https://dashscope.aliyuncs.com/compatible-mode/v1'),
-        'qwen_model': db_configs.get('qwen_model', 'qwen-plus')
+        'qwen_model': db_configs.get('qwen_model', 'qwen-plus'),
+        # Gemini
+        'gemini_api_key': db_configs.get('gemini_api_key'),
+        'gemini_base_url': db_configs.get('gemini_base_url'),  # Optional, defaults to Google's API
+        'gemini_model': db_configs.get('gemini_model', 'gemini-2.0-flash-exp')
     }
 
     return config

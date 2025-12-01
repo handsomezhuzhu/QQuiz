@@ -54,6 +54,9 @@ class SystemConfigUpdate(BaseModel):
     qwen_api_key: Optional[str] = None
     qwen_base_url: Optional[str] = None
     qwen_model: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+    gemini_base_url: Optional[str] = None
+    gemini_model: Optional[str] = None
 
 
 class SystemConfigResponse(BaseModel):
@@ -70,6 +73,9 @@ class SystemConfigResponse(BaseModel):
     qwen_api_key: Optional[str] = None
     qwen_base_url: Optional[str] = None
     qwen_model: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+    gemini_base_url: Optional[str] = None
+    gemini_model: Optional[str] = None
 
 
 # ============ Exam Schemas ============

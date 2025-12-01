@@ -67,10 +67,87 @@ async def check_upload_limits(user_id: int, file_size: int, db: AsyncSession):
         )
 
 
+async def generate_ai_reference_answer(
+    llm_service,
+    question_content: str,
+    question_type: str,
+    options: Optional[List[str]] = None
+) -> str:
+    """
+    Generate an AI reference answer for a question without a provided answer.
+
+    Args:
+        llm_service: LLM service instance
+        question_content: The question text
+        question_type: Type of question (single, multiple, judge, short)
+        options: Question options (for choice questions)
+
+    Returns:
+        Generated answer text
+    """
+    # Build prompt based on question type
+    if question_type in ["single", "multiple"] and options:
+        options_text = "\n".join(options)
+        prompt = f"""这是一道{
+            '单选题' if question_type == 'single' else '多选题'
+        }，但文档中没有提供答案。请根据题目内容，推理出最可能的正确答案。
+
+题目：{question_content}
+
+选项：
+{options_text}
+
+请只返回你认为正确的选项字母（如 A 或 AB），不要有其他解释。如果无法确定，请返回"无法确定"。"""
+    elif question_type == "judge":
+        prompt = f"""这是一道判断题，但文档中没有提供答案。请根据题目内容，判断正误。
+
+题目：{question_content}
+
+请只返回"对"或"错"，不要有其他解释。如果无法确定，请返回"无法确定"。"""
+    else:  # short answer
+        prompt = f"""这是一道简答题，但文档中没有提供答案。请根据题目内容，给出一个简洁的参考答案（50字以内）。
+
+题目：{question_content}
+
+请直接返回答案内容，不要有"答案："等前缀。如果无法回答，请返回"无法确定"。"""
+
+    # Generate answer using LLM
+    if llm_service.provider == "gemini":
+        import asyncio
+
+        def _generate():
+            return llm_service.client.models.generate_content(
+                model=llm_service.model,
+                contents=prompt
+            )
+
+        response = await asyncio.to_thread(_generate)
+        return response.text.strip()
+    elif llm_service.provider == "anthropic":
+        response = await llm_service.client.messages.create(
+            model=llm_service.model,
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text.strip()
+    else:  # OpenAI or Qwen
+        response = await llm_service.client.chat.completions.create(
+            model=llm_service.model,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that provides concise answers."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=256
+        )
+        return response.choices[0].message.content.strip()
+
+
 async def process_questions_with_dedup(
     exam_id: int,
     questions_data: List[dict],
-    db: AsyncSession
+    db: AsyncSession,
+    llm_service=None
 ) -> ParseResult:
     """
     Process parsed questions with deduplication logic.
@@ -79,6 +156,7 @@ async def process_questions_with_dedup(
         exam_id: Target exam ID
         questions_data: List of question dicts from LLM parsing
         db: Database session
+        llm_service: LLM service instance for generating AI answers
 
     Returns:
         ParseResult with statistics
@@ -86,6 +164,7 @@ async def process_questions_with_dedup(
     total_parsed = len(questions_data)
     duplicates_removed = 0
     new_added = 0
+    ai_answers_generated = 0
 
     # Get existing content hashes for this exam
     result = await db.execute(
@@ -101,13 +180,40 @@ async def process_questions_with_dedup(
             duplicates_removed += 1
             continue
 
+        # Handle missing answers - generate AI reference answer
+        answer = q_data.get("answer")
+        if (answer is None or answer == "null" or answer == "") and llm_service:
+            print(f"[Question] Generating AI reference answer for: {q_data['content'][:50]}...", flush=True)
+            try:
+                # Convert question type to string if it's not already
+                q_type = q_data["type"]
+                if hasattr(q_type, 'value'):
+                    q_type = q_type.value
+                elif isinstance(q_type, str):
+                    q_type = q_type.lower()
+
+                ai_answer = await generate_ai_reference_answer(
+                    llm_service,
+                    q_data["content"],
+                    q_type,
+                    q_data.get("options")
+                )
+                answer = f"AI参考答案：{ai_answer}"
+                ai_answers_generated += 1
+                print(f"[Question] ✅ AI answer generated: {ai_answer[:50]}...", flush=True)
+            except Exception as e:
+                print(f"[Question] ⚠️ Failed to generate AI answer: {e}", flush=True)
+                answer = "（答案未提供）"
+        elif answer is None or answer == "null" or answer == "":
+            answer = "（答案未提供）"
+
         # Create new question
         new_question = Question(
             exam_id=exam_id,
             content=q_data["content"],
             type=q_data["type"],
             options=q_data.get("options"),
-            answer=q_data["answer"],
+            answer=answer,
             analysis=q_data.get("analysis"),
             content_hash=content_hash
         )
@@ -117,11 +223,15 @@ async def process_questions_with_dedup(
 
     await db.commit()
 
+    message = f"Parsed {total_parsed} questions, removed {duplicates_removed} duplicates, added {new_added} new questions"
+    if ai_answers_generated > 0:
+        message += f", generated {ai_answers_generated} AI reference answers"
+
     return ParseResult(
         total_parsed=total_parsed,
         duplicates_removed=duplicates_removed,
         new_added=new_added,
-        message=f"Parsed {total_parsed} questions, removed {duplicates_removed} duplicates, added {new_added} new questions"
+        message=message
     )
 
 
@@ -145,27 +255,54 @@ async def async_parse_and_save(
             exam.status = ExamStatus.PROCESSING
             await db.commit()
 
-            # Parse document
-            print(f"[Exam {exam_id}] Parsing document: {filename}")
-            text_content = await document_parser.parse_file(file_content, filename)
-
-            if not text_content or len(text_content.strip()) < 10:
-                raise Exception("Document appears to be empty or too short")
-
             # Load LLM configuration from database
             llm_config = await load_llm_config(db)
             llm_service = LLMService(config=llm_config)
 
-            # Parse questions using LLM
-            print(f"[Exam {exam_id}] Calling LLM to extract questions...")
-            questions_data = await llm_service.parse_document(text_content)
+            # Check if file is PDF and provider is Gemini
+            is_pdf = filename.lower().endswith('.pdf')
+            is_gemini = llm_config.get('ai_provider') == 'gemini'
+
+            print(f"[Exam {exam_id}] Parsing document: {filename}")
+            print(f"[Exam {exam_id}] File type: {'PDF' if is_pdf else 'Text-based'}", flush=True)
+            print(f"[Exam {exam_id}] AI Provider: {llm_config.get('ai_provider')}", flush=True)
+
+            try:
+                if is_pdf and is_gemini:
+                    # Use Gemini's native PDF processing
+                    print(f"[Exam {exam_id}] Using Gemini native PDF processing", flush=True)
+                    print(f"[Exam {exam_id}] PDF file size: {len(file_content)} bytes", flush=True)
+                    questions_data = await llm_service.parse_document_with_pdf(file_content, filename)
+                else:
+                    # Extract text first, then parse
+                    if is_pdf:
+                        print(f"[Exam {exam_id}] ⚠️ Warning: Using text extraction for PDF (provider does not support native PDF)", flush=True)
+
+                    print(f"[Exam {exam_id}] Extracting text from document...", flush=True)
+                    text_content = await document_parser.parse_file(file_content, filename)
+
+                    if not text_content or len(text_content.strip()) < 10:
+                        raise Exception("Document appears to be empty or too short")
+
+                    print(f"[Exam {exam_id}] Text content length: {len(text_content)} chars", flush=True)
+                    print(f"[Exam {exam_id}] Document content preview:\n{text_content[:500]}\n{'...' if len(text_content) > 500 else ''}", flush=True)
+                    print(f"[Exam {exam_id}] Calling LLM to extract questions...", flush=True)
+
+                    questions_data = await llm_service.parse_document(text_content)
+
+            except Exception as parse_error:
+                print(f"[Exam {exam_id}] ⚠️ Parse error details: {type(parse_error).__name__}", flush=True)
+                print(f"[Exam {exam_id}] ⚠️ Parse error message: {str(parse_error)}", flush=True)
+                import traceback
+                print(f"[Exam {exam_id}] ⚠️ Full traceback:\n{traceback.format_exc()}", flush=True)
+                raise
 
             if not questions_data:
                 raise Exception("No questions found in document")
 
-            # Process questions with deduplication
+            # Process questions with deduplication and AI answer generation
             print(f"[Exam {exam_id}] Processing questions with deduplication...")
-            parse_result = await process_questions_with_dedup(exam_id, questions_data, db)
+            parse_result = await process_questions_with_dedup(exam_id, questions_data, db, llm_service)
 
             # Update exam status and total questions
             result = await db.execute(select(Exam).where(Exam.id == exam_id))

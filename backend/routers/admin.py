@@ -34,7 +34,7 @@ async def get_system_config(
         "allow_registration": configs.get("allow_registration", "true").lower() == "true",
         "max_upload_size_mb": int(configs.get("max_upload_size_mb", "10")),
         "max_daily_uploads": int(configs.get("max_daily_uploads", "20")),
-        "ai_provider": configs.get("ai_provider", "openai"),
+        "ai_provider": configs.get("ai_provider", "gemini"),
         # API Configuration
         "openai_api_key": mask_api_key(configs.get("openai_api_key")),
         "openai_base_url": configs.get("openai_base_url", "https://api.openai.com/v1"),
@@ -43,7 +43,10 @@ async def get_system_config(
         "anthropic_model": configs.get("anthropic_model", "claude-3-haiku-20240307"),
         "qwen_api_key": mask_api_key(configs.get("qwen_api_key")),
         "qwen_base_url": configs.get("qwen_base_url", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-        "qwen_model": configs.get("qwen_model", "qwen-plus")
+        "qwen_model": configs.get("qwen_model", "qwen-plus"),
+        "gemini_api_key": mask_api_key(configs.get("gemini_api_key")),
+        "gemini_base_url": configs.get("gemini_base_url", ""),
+        "gemini_model": configs.get("gemini_model", "gemini-2.0-flash-exp")
     }
 
 
