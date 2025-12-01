@@ -6,8 +6,6 @@ import json
 from typing import List, Dict, Any, Optional
 from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
-from google import genai
-from google.genai import types
 import httpx
 
 from models import QuestionType
@@ -83,43 +81,20 @@ class LLMService:
             if not api_key:
                 raise ValueError("Gemini API key not configured")
 
-            # Create client with optional custom base URL
-            if base_url:
-                # Use custom base URL (for proxy/relay services)
-                print(f"[LLM Config] Using custom Gemini base URL: {base_url}", flush=True)
+            # Store Gemini configuration for REST API calls
+            self.gemini_api_key = api_key
+            self.gemini_base_url = base_url or "https://generativelanguage.googleapis.com"
 
-                # Try different methods to set custom base URL
-                try:
-                    # Method 1: Try http_options parameter
-                    self.client = genai.Client(
-                        api_key=api_key,
-                        http_options={'api_endpoint': base_url}
-                    )
-                    print(f"[LLM Config] ✓ Set base URL via http_options", flush=True)
-                except TypeError:
-                    try:
-                        # Method 2: Try vertexai parameter (some versions)
-                        self.client = genai.Client(
-                            api_key=api_key,
-                            vertexai=False,
-                            client_options={'api_endpoint': base_url}
-                        )
-                        print(f"[LLM Config] ✓ Set base URL via client_options", flush=True)
-                    except:
-                        # Method 3: Set environment variable and create client
-                        print(f"[LLM Config] ⚠️ SDK doesn't support custom URL parameter, using environment variable", flush=True)
-                        os.environ['GOOGLE_API_BASE'] = base_url
-                        self.client = genai.Client(api_key=api_key)
-                        print(f"[LLM Config] ✓ Set base URL via environment variable", flush=True)
-            else:
-                # Use default Google API
-                self.client = genai.Client(api_key=api_key)
+            # Create httpx client for REST API calls (instead of SDK)
+            self.client = httpx.AsyncClient(
+                timeout=120.0,
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            )
 
             # Log configuration for debugging
-            print(f"[LLM Config] Provider: Gemini", flush=True)
+            print(f"[LLM Config] Provider: Gemini (REST API)", flush=True)
             print(f"[LLM Config] Model: {self.model}", flush=True)
-            if base_url:
-                print(f"[LLM Config] Base URL: {base_url}", flush=True)
+            print(f"[LLM Config] Base URL: {self.gemini_base_url}", flush=True)
             print(f"[LLM Config] API Key: {api_key[:10]}...{api_key[-4:] if len(api_key) > 14 else 'xxxx'}", flush=True)
 
         else:
@@ -196,18 +171,24 @@ class LLMService:
                 )
                 result = response.content[0].text
             elif self.provider == "gemini":
-                # Gemini uses different API
-                import asyncio
+                # Gemini uses REST API
+                print(f"[Gemini Text] Calling Gemini REST API with model: {self.model}", flush=True)
 
-                def _generate_content():
-                    return self.client.models.generate_content(
-                        model=self.model,
-                        contents=prompt.format(content=content)
-                    )
+                url = f"{self.gemini_base_url}/v1beta/models/{self.model}:generateContent"
+                headers = {"Content-Type": "application/json"}
+                params = {"key": self.gemini_api_key}
+                payload = {
+                    "contents": [{
+                        "parts": [{"text": prompt.format(content=content)}]
+                    }]
+                }
 
-                print(f"[Gemini Text] Calling Gemini API with model: {self.model}", flush=True)
-                response = await asyncio.to_thread(_generate_content)
-                result = response.text
+                response = await self.client.post(url, headers=headers, params=params, json=payload)
+                response.raise_for_status()
+                response_data = response.json()
+
+                # Extract text from response
+                result = response_data["candidates"][0]["content"]["parts"][0]["text"]
                 print(f"[Gemini Text] API call completed", flush=True)
             else:  # OpenAI or Qwen
                 response = await self.client.chat.completions.create(
@@ -450,27 +431,35 @@ class LLMService:
             print(f"[Gemini PDF] Processing PDF: {filename}", flush=True)
             print(f"[Gemini PDF] File size: {len(pdf_bytes)} bytes", flush=True)
 
-            # Use Gemini's native PDF processing
-            # Run sync API in thread pool to avoid blocking
-            import asyncio
+            # Use Gemini's native PDF processing via REST API
+            import base64
 
-            def _generate_content():
-                return self.client.models.generate_content(
-                    model=self.model,
-                    contents=[
-                        types.Part.from_bytes(
-                            data=pdf_bytes,
-                            mime_type='application/pdf',
-                        ),
-                        prompt
+            # Encode PDF to base64
+            pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+            print(f"[Gemini PDF] PDF encoded to base64: {len(pdf_base64)} chars", flush=True)
+
+            # Build REST API request
+            url = f"{self.gemini_base_url}/v1beta/models/{self.model}:generateContent"
+            headers = {"Content-Type": "application/json"}
+            params = {"key": self.gemini_api_key}
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"inline_data": {"mime_type": "application/pdf", "data": pdf_base64}},
+                        {"text": prompt}
                     ]
-                )
+                }]
+            }
 
-            print(f"[Gemini PDF] Calling Gemini API with model: {self.model}", flush=True)
-            response = await asyncio.to_thread(_generate_content)
+            print(f"[Gemini PDF] Calling Gemini REST API with model: {self.model}", flush=True)
+            response = await self.client.post(url, headers=headers, params=params, json=payload)
+            response.raise_for_status()
             print(f"[Gemini PDF] API call completed", flush=True)
 
-            result = response.text
+            response_data = response.json()
+
+            # Extract text from response
+            result = response_data["candidates"][0]["content"]["parts"][0]["text"]
             print(f"[Gemini PDF] Response retrieved, checking content...", flush=True)
 
             # Log original response for debugging
@@ -541,22 +530,20 @@ class LLMService:
                 print(f"[Gemini PDF] ⚠️ Gemini returned empty array - PDF may not contain recognizable questions", flush=True)
                 print(f"[Gemini PDF] 💡 Trying to get Gemini's explanation...", flush=True)
 
-                # Ask Gemini what it saw in the PDF
-                def _ask_what_gemini_sees():
-                    return self.client.models.generate_content(
-                        model=self.model,
-                        contents=[
-                            types.Part.from_bytes(
-                                data=pdf_bytes,
-                                mime_type='application/pdf',
-                            ),
-                            "Please describe what you see in this PDF document. What is the main content? Are there any questions, exercises, or test items? Respond in Chinese."
+                # Ask Gemini what it saw in the PDF using REST API
+                explanation_payload = {
+                    "contents": [{
+                        "parts": [
+                            {"inline_data": {"mime_type": "application/pdf", "data": pdf_base64}},
+                            {"text": "Please describe what you see in this PDF document. What is the main content? Are there any questions, exercises, or test items? Respond in Chinese."}
                         ]
-                    )
+                    }]
+                }
 
-                import asyncio
-                explanation_response = await asyncio.to_thread(_ask_what_gemini_sees)
-                explanation = explanation_response.text
+                explanation_response = await self.client.post(url, headers=headers, params=params, json=explanation_payload)
+                explanation_response.raise_for_status()
+                explanation_data = explanation_response.json()
+                explanation = explanation_data["candidates"][0]["content"]["parts"][0]["text"]
                 print(f"[Gemini PDF] 📄 Gemini sees: {explanation[:500]}...", flush=True)
 
                 raise Exception(f"No questions found in PDF. Gemini's description: {explanation[:200]}...")
@@ -661,17 +648,20 @@ Return ONLY the JSON object, no markdown or explanations."""
                 )
                 result = response.content[0].text
             elif self.provider == "gemini":
-                # Gemini uses different API
-                import asyncio
+                # Gemini uses REST API
+                url = f"{self.gemini_base_url}/v1beta/models/{self.model}:generateContent"
+                headers = {"Content-Type": "application/json"}
+                params = {"key": self.gemini_api_key}
+                payload = {
+                    "contents": [{
+                        "parts": [{"text": prompt}]
+                    }]
+                }
 
-                def _generate_content():
-                    return self.client.models.generate_content(
-                        model=self.model,
-                        contents=prompt
-                    )
-
-                response = await asyncio.to_thread(_generate_content)
-                result = response.text
+                response = await self.client.post(url, headers=headers, params=params, json=payload)
+                response.raise_for_status()
+                response_data = response.json()
+                result = response_data["candidates"][0]["content"]["parts"][0]["text"]
             else:  # OpenAI or Qwen
                 response = await self.client.chat.completions.create(
                     model=self.model,

@@ -113,16 +113,20 @@ async def generate_ai_reference_answer(
 
     # Generate answer using LLM
     if llm_service.provider == "gemini":
-        import asyncio
+        # Use REST API for Gemini
+        url = f"{llm_service.gemini_base_url}/v1beta/models/{llm_service.model}:generateContent"
+        headers = {"Content-Type": "application/json"}
+        params = {"key": llm_service.gemini_api_key}
+        payload = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }]
+        }
 
-        def _generate():
-            return llm_service.client.models.generate_content(
-                model=llm_service.model,
-                contents=prompt
-            )
-
-        response = await asyncio.to_thread(_generate)
-        return response.text.strip()
+        response = await llm_service.client.post(url, headers=headers, params=params, json=payload)
+        response.raise_for_status()
+        response_data = response.json()
+        return response_data["candidates"][0]["content"]["parts"][0]["text"].strip()
     elif llm_service.provider == "anthropic":
         response = await llm_service.client.messages.create(
             model=llm_service.model,
