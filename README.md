@@ -5,7 +5,9 @@ QQuiz 是一个支持 Docker/源码双模部署的智能刷题平台，核心功
 ## 功能特性
 
 - 📚 **多文件上传与去重**: 支持向同一题库追加文档，自动识别并过滤重复题目
-- 🤖 **AI 智能解析**: 支持 OpenAI/Anthropic/Qwen 多种 AI 提供商
+- 🤖 **AI 智能解析**: 支持 Google Gemini (推荐) / OpenAI / Anthropic / Qwen 多种 AI 提供商
+- 📄 **原生 PDF 理解**: Gemini 支持直接处理 PDF（最多1000页），完整保留图片、表格、公式等内容
+- 🎓 **AI 参考答案**: 对于没有提供答案的题目，自动生成 AI 参考答案
 - 📊 **断点续做**: 自动记录刷题进度，随时继续
 - ❌ **错题本管理**: 自动收集错题，支持手动添加/移除
 - 🎯 **多题型支持**: 单选、多选、判断、简答
@@ -66,6 +68,23 @@ chmod +x scripts/run_local.sh
 
 **MySQL 安装指南：** 详见 [docs/MYSQL_SETUP.md](docs/MYSQL_SETUP.md)
 
+### Docker 构建加速（中国用户）
+
+如果你在中国大陆，Docker 构建速度可能较慢。我们提供了使用国内镜像的可选配置：
+
+**详细指南：** 参见 [docs/CHINA_MIRROR_GUIDE.md](docs/CHINA_MIRROR_GUIDE.md)
+
+**快速使用：**
+```bash
+# 后端使用中国镜像构建
+docker build -f backend/Dockerfile.china -t qquiz-backend ./backend
+
+# 前端使用中国镜像构建
+docker build -f frontend/Dockerfile.china -t qquiz-frontend ./frontend
+```
+
+构建速度可提升 3-5 倍 ⚡
+
 ## 默认账户
 
 **管理员账户:**
@@ -98,11 +117,13 @@ QQuiz/
 │   ├── fix_and_start.bat           # Windows 快速启动（推荐）
 │   ├── start_with_docker_db.bat    # Docker 数据库启动
 │   ├── setup.bat                    # 环境配置脚本
-│   └── run_local.sh                 # Linux/macOS 启动脚本
+│   ├── run_local.sh                 # Linux/macOS 启动脚本
+│   └── [其他辅助脚本...]
 ├── docs/                 # 文档目录
-│   ├── QUICK_START.md              # 快速入门指南
-│   ├── WINDOWS_DEPLOYMENT.md       # Windows 部署指南
-│   ├── DOCKER_MIRROR_SETUP.md      # Docker 镜像加速配置
+│   ├── AI_CONFIGURATION.md         # AI 提供商配置指南（重要）
+│   ├── MYSQL_SETUP.md              # MySQL 安装配置指南
+│   ├── CHINA_MIRROR_GUIDE.md       # 中国镜像加速指南
+│   ├── WINDOWS_DEPLOYMENT.md       # Windows 部署详细指南
 │   └── PROJECT_STRUCTURE.md        # 项目架构详解
 ├── test_data/            # 测试数据
 │   └── sample_questions.txt        # 示例题目
@@ -141,11 +162,50 @@ QQuiz/
 |------|------|--------|
 | `DATABASE_URL` | 数据库连接字符串 | - |
 | `SECRET_KEY` | JWT 密钥 | - |
-| `AI_PROVIDER` | AI 提供商 (openai/anthropic/qwen) | openai |
+| `AI_PROVIDER` | AI 提供商 (gemini/openai/anthropic/qwen) | gemini |
+| `GEMINI_API_KEY` | Google Gemini API 密钥 | - |
+| `GEMINI_BASE_URL` | Gemini API 地址（可选，支持代理） | https://generativelanguage.googleapis.com |
+| `GEMINI_MODEL` | Gemini 模型 | gemini-2.0-flash-exp |
 | `OPENAI_API_KEY` | OpenAI API 密钥 | - |
+| `OPENAI_BASE_URL` | OpenAI API 地址 | https://api.openai.com/v1 |
+| `OPENAI_MODEL` | OpenAI 模型 | gpt-4o-mini |
+| `ANTHROPIC_API_KEY` | Anthropic API 密钥 | - |
+| `ANTHROPIC_MODEL` | Anthropic 模型 | claude-3-haiku-20240307 |
+| `QWEN_API_KEY` | 通义千问 API 密钥 | - |
+| `QWEN_BASE_URL` | 通义千问 API 地址 | https://dashscope.aliyuncs.com/compatible-mode/v1 |
+| `QWEN_MODEL` | 通义千问模型 | qwen-plus |
 | `ALLOW_REGISTRATION` | 是否允许注册 | true |
 | `MAX_UPLOAD_SIZE_MB` | 最大上传文件大小 (MB) | 10 |
 | `MAX_DAILY_UPLOADS` | 每日上传次数限制 | 20 |
+
+### AI 提供商对比
+
+| 提供商 | PDF 原生支持 | 文本解析 | 推荐度 | 说明 |
+|--------|--------------|----------|--------|------|
+| **Google Gemini** | ✅ | ✅ | ⭐⭐⭐⭐⭐ | 支持原生 PDF（最多1000页），保留图片、表格、公式 |
+| OpenAI | ❌ | ✅ | ⭐⭐⭐⭐ | 仅文本提取，PDF 会丢失格式和图片 |
+| Anthropic | ❌ | ✅ | ⭐⭐⭐⭐ | 仅文本提取，PDF 会丢失格式和图片 |
+| Qwen (通义千问) | ❌ | ✅ | ⭐⭐⭐ | 仅文本提取，PDF 会丢失格式和图片 |
+
+**推荐使用 Gemini**：如果你的题库包含 PDF 文件（特别是含有图片、公式、表格的学科试卷），强烈推荐使用 Gemini。
+
+### 如何获取 API Key
+
+- **Google Gemini**: https://aistudio.google.com/apikey (免费额度充足)
+- **OpenAI**: https://platform.openai.com/api-keys
+- **Anthropic**: https://console.anthropic.com/settings/keys
+- **Qwen (通义千问)**: https://dashscope.console.aliyun.com/apiKey
+
+### AI 配置方式
+
+QQuiz 支持两种配置方式：
+
+1. **环境变量配置** (`.env` 文件)：适合 Docker 部署和开发环境
+2. **数据库配置** (管理员后台)：适合生产环境，支持在线修改，无需重启服务
+
+**推荐流程**：首次部署使用环境变量，部署成功后通过管理员后台修改配置。
+
+**Gemini 自定义代理**: 如果需要使用 Key 轮训服务或代理，可以在管理员后台配置 `GEMINI_BASE_URL`，支持自定义 Gemini API 地址。
 
 ## 技术栈
 

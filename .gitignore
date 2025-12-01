@@ -54,3 +54,4 @@ htmlcov/
 
 # Docker
 *.log
+docker-compose.override.yml

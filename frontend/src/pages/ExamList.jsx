@@ -98,9 +98,17 @@ export const ExamList = () => {
       toast.success('题库创建成功，正在解析文档...')
       setShowCreateModal(false)
       setFormData({ title: '', file: null })
-      await loadExams()
+
+      // 跳转到新创建的试卷详情页
+      if (response.data && response.data.exam_id) {
+        navigate(`/exams/${response.data.exam_id}`)
+      } else {
+        // 如果没有返回 exam_id，刷新列表
+        await loadExams()
+      }
     } catch (error) {
       console.error('Failed to create exam:', error)
+      toast.error('创建失败：' + (error.response?.data?.detail || error.message))
     } finally {
       setCreating(false)
     }

@@ -1,0 +1,22 @@
+# Dockerfile with China mirrors for faster builds
+# Usage: docker build -f Dockerfile.china -t qquiz-frontend .
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies using Taobao npm registry
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start development server
+CMD ["npm", "start"]

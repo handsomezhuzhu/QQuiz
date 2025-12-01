@@ -28,24 +28,19 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    print(f"🔍 Received token (first 50 chars): {token[:50] if token else 'None'}...")
-
     # Decode token
     payload = decode_access_token(token)
     if payload is None:
-        print(f"❌ Token decode failed - Invalid or expired token")
         raise credentials_exception
 
     user_id = payload.get("sub")
     if user_id is None:
-        print(f"❌ No 'sub' in payload: {payload}")
         raise credentials_exception
 
     # Convert user_id to int if it's a string
     try:
         user_id = int(user_id)
     except (ValueError, TypeError):
-        print(f"❌ Invalid user_id format: {user_id}")
         raise credentials_exception
 
     # Get user from database
@@ -53,10 +48,8 @@ async def get_current_user(
     user = result.scalar_one_or_none()
 
     if user is None:
-        print(f"❌ User not found with id: {user_id}")
         raise credentials_exception
 
-    print(f"✅ User authenticated: {user.username} (id={user.id})")
     return user
 
 
