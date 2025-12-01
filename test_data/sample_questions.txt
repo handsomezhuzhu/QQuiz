@@ -1,0 +1,77 @@
+测试题库 - Python 基础
+
+1. Python 是一种什么类型的编程语言？
+A. 编译型语言
+B. 解释型语言
+C. 汇编语言
+D. 机器语言
+答案：B
+解析：Python 是一种解释型、面向对象、动态数据类型的高级程序设计语言。它不需要编译成机器码，而是通过解释器直接执行源代码。
+
+2. 下列哪个不是 Python 的核心数据类型？
+A. 列表 (list)
+B. 元组 (tuple)
+C. 数组 (array)
+D. 字典 (dict)
+答案：C
+解析：Python 的核心数据类型包括 list、tuple、dict、set、str、int、float、bool 等。array 不是内置类型，需要导入 array 模块才能使用。
+
+3. 在 Python 中，以下哪个关键字用于定义函数？
+A. function
+B. def
+C. func
+D. define
+答案：B
+解析：Python 使用 def 关键字来定义函数，例如：def my_function():
+
+4. Python 中如何创建一个空字典？
+A. dict = []
+B. dict = ()
+C. dict = {}
+D. dict = set()
+答案：C
+解析：{} 用于创建空字典，[] 创建空列表，() 创建空元组，set() 创建空集合。
+
+5. 以下哪个语句可以正确导入 Python 的 random 模块？
+A. import random
+B. include random
+C. using random
+D. require random
+答案：A
+解析：Python 使用 import 关键字导入模块，例如：import random 或 from random import randint
+
+6. Python 是否支持多继承？
+A. 正确
+B. 错误
+答案：A
+解析：Python 支持多继承，一个类可以继承多个父类。语法为：class ChildClass(Parent1, Parent2):
+
+7. Python 中的 None 表示什么？
+A. 空字符串
+B. 数字 0
+C. 空值/空对象
+D. False
+答案：C
+解析：None 是 Python 中的一个特殊常量，表示"无值"或"空值"。它不等同于 0、空字符串或 False。
+
+8. 以下哪些是 Python 的合法变量名？（多选）
+A. my_var
+B. _private
+C. 2nd_var
+D. myVar
+答案：ABD
+解析：Python 变量名必须以字母或下划线开头，不能以数字开头。因此 2nd_var 不合法。
+
+9. Python 中的缩进是强制性的吗？
+A. 正确
+B. 错误
+答案：A
+解析：Python 使用缩进来表示代码块，这是语法的一部分，不正确的缩进会导致 IndentationError。
+
+10. 在 Python 中，如何注释单行代码？
+A. // 注释内容
+B. /* 注释内容 */
+C. # 注释内容
+D. -- 注释内容
+答案：C
+解析：Python 使用 # 进行单行注释，使用三引号 ''' 或 """ 进行多行注释。
