@@ -15,8 +15,11 @@ services:
       # 数据库配置（SQLite 默认）
       - DATABASE_URL=sqlite+aiosqlite:////app/data/qquiz.db
 
-      # JWT 密钥（生产环境请修改）
-      - SECRET_KEY=your-super-secret-key-change-in-production-minimum-32-characters
+      # JWT 密钥（生产环境必须设置为随机字符串）
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY to a random string of at least 32 characters}
+
+      # 管理员密码（生产环境必须设置为随机强密码，至少 12 位）
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD to a strong password of at least 12 characters}
 
       # AI 提供商配置
       - AI_PROVIDER=gemini

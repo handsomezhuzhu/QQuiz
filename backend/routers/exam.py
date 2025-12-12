@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import os
 import aiofiles
 import json
+import magic
 
 from database import get_db
 from models import User, Exam, Question, ExamStatus, SystemConfig
@@ -24,8 +25,57 @@ from services.config_service import load_llm_config
 from services.progress_service import progress_service
 from utils import is_allowed_file, calculate_content_hash
 from dedup_utils import is_duplicate_question
+from rate_limit import limiter
 
 router = APIRouter()
+ALLOWED_MIME_TYPES = {
+    "text/plain",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+
+async def validate_upload_file(file: UploadFile) -> None:
+    """Validate uploaded file by extension and MIME type."""
+
+    if not file.filename or not is_allowed_file(file.filename):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Allowed: txt, pdf, doc, docx, xlsx, xls",
+        )
+
+    try:
+        sample = await file.read(2048)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not read uploaded file for validation",
+        )
+
+    if not sample:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty",
+        )
+
+    try:
+        mime_type = magic.from_buffer(sample, mime=True)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not determine file type",
+        )
+    finally:
+        file.file.seek(0)
+
+    if mime_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file content type",
+        )
 
 
 async def check_upload_limits(user_id: int, file_size: int, db: AsyncSession):
@@ -485,6 +535,7 @@ async def async_parse_and_save(
 
 
 @router.post("/create", response_model=ExamUploadResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def create_exam_with_upload(
     background_tasks: BackgroundTasks,
     title: str = Form(...),
@@ -498,11 +549,7 @@ async def create_exam_with_upload(
     """
 
     # Validate file
-    if not file.filename or not is_allowed_file(file.filename):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file type. Allowed: txt, pdf, doc, docx, xlsx, xls"
-        )
+    await validate_upload_file(file)
 
     # Read file content
     file_content = await file.read()
@@ -538,6 +585,7 @@ async def create_exam_with_upload(
 
 
 @router.post("/{exam_id}/append", response_model=ExamUploadResponse)
+@limiter.limit("10/minute")
 async def append_document_to_exam(
     exam_id: int,
     background_tasks: BackgroundTasks,
@@ -572,11 +620,7 @@ async def append_document_to_exam(
         )
 
     # Validate file
-    if not file.filename or not is_allowed_file(file.filename):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file type. Allowed: txt, pdf, doc, docx, xlsx, xls"
-        )
+    await validate_upload_file(file)
 
     # Read file content
     file_content = await file.read()

@@ -86,6 +86,10 @@ async def init_default_config(db: AsyncSession):
         "ai_provider": os.getenv("AI_PROVIDER", "openai"),
     }
 
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    if not admin_password or len(admin_password) < 12:
+        raise ValueError("ADMIN_PASSWORD must be set and at least 12 characters long")
+
     for key, value in default_configs.items():
         result = await db.execute(select(SystemConfig).where(SystemConfig.key == key))
         existing = result.scalar_one_or_none()
@@ -99,15 +103,32 @@ async def init_default_config(db: AsyncSession):
     result = await db.execute(select(User).where(User.username == "admin"))
     admin = result.scalar_one_or_none()
 
+    default_admin_id = admin.id if admin else None
+
     if not admin:
         admin_user = User(
             username="admin",
-            hashed_password=pwd_context.hash("admin123"),  # Change this password!
+            hashed_password=pwd_context.hash(admin_password),
             is_admin=True
         )
         db.add(admin_user)
-        print("✅ Created default admin user (username: admin, password: admin123)")
-        print("⚠️  IMPORTANT: Please change the admin password immediately!")
+        await db.commit()
+        await db.refresh(admin_user)
+        default_admin_id = admin_user.id
+        print("✅ Created default admin user (username: admin)")
+    else:
+        await db.commit()
+
+    if default_admin_id is not None:
+        result = await db.execute(
+            select(SystemConfig).where(SystemConfig.key == "default_admin_id")
+        )
+        default_admin_config = result.scalar_one_or_none()
+
+        if not default_admin_config:
+            db.add(SystemConfig(key="default_admin_id", value=str(default_admin_id)))
+        elif default_admin_config.value != str(default_admin_id):
+            default_admin_config.value = str(default_admin_id)
 
     await db.commit()
 
