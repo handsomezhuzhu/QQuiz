@@ -25,7 +25,7 @@ WORKDIR /app
 COPY backend/requirements.txt ./
 
 # 安装 Python 依赖（使用预编译wheel包，无需gcc）
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # 复制后端代码
 COPY backend/ ./
