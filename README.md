@@ -16,9 +16,43 @@ QQuiz 是一个支持 Docker/源码双模部署的智能刷题平台，核心功
 
 ## 快速开始
 
-### 单容器部署（推荐）
+### 使用预构建镜像（最快）
 
-一个容器包含前后端和 SQLite 数据库：
+直接使用 GitHub 自动构建的镜像，无需等待本地构建：
+
+```bash
+# 1. 拉取最新镜像
+docker pull ghcr.io/handsomezhuzhu/qquiz:latest
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env，填入你的 API Key
+
+# 3. 运行容器
+docker run -d \
+  --name qquiz \
+  -p 8000:8000 \
+  -v $(pwd)/qquiz_data:/app/qquiz_data \
+  --env-file .env \
+  ghcr.io/handsomezhuzhu/qquiz:latest
+
+# 4. 访问应用: http://localhost:8000
+```
+
+**镜像说明：**
+- **镜像地址**: `ghcr.io/handsomezhuzhu/qquiz:latest`
+- **构建来源**: GitHub Actions 自动构建，每次 push 到 main 分支自动更新
+- **架构支持**: linux/amd64, linux/arm64（支持树莓派、Apple Silicon 等）
+- **大小**: 约 400-500MB（包含前后端完整运行环境）
+- **标签说明**:
+  - `latest`: 最新主分支版本
+  - `v1.0.0`: 特定版本号（如果有 tag）
+
+**数据持久化：** 使用 `-v` 参数挂载 `qquiz_data` 目录，包含 SQLite 数据库和上传文件，确保数据不会丢失。
+
+### 单容器部署（自行构建）
+
+从源码构建，一个容器包含前后端和 SQLite 数据库：
 
 ```bash
 # 1. 配置环境变量
@@ -92,6 +126,36 @@ docker build -f frontend/Dockerfile.china -t qquiz-frontend ./frontend
 ```
 
 构建速度可提升 3-5 倍 ⚡
+
+## GitHub Actions 自动构建设置
+
+如果你 fork 了本项目并想启用自动构建 Docker 镜像功能：
+
+1. **启用 GitHub Actions**:
+   - 进入你的仓库 Settings → Actions → General
+   - 确保 "Actions permissions" 设置为 "Allow all actions"
+
+2. **启用 Packages 写入权限**:
+   - Settings → Actions → General
+   - 找到 "Workflow permissions"
+   - 选择 "Read and write permissions"
+   - 勾选 "Allow GitHub Actions to create and approve pull requests"
+
+3. **触发构建**:
+   - 推送代码到 `main` 分支会自动触发构建
+   - 或者创建 tag（如 `v1.0.0`）会构建带版本号的镜像
+   - 也可以在 Actions 页面手动触发 "Build and Publish Docker Image" workflow
+
+4. **查看构建的镜像**:
+   - 构建完成后，镜像会自动发布到 `ghcr.io/handsomezhuzhu/qquiz`
+   - 在仓库主页右侧 "Packages" 可以看到已发布的镜像
+   - 镜像默认是私有的，如需公开：进入 Package 页面 → Package settings → Change visibility
+
+**镜像地址：**
+```bash
+# 拉取最新镜像
+docker pull ghcr.io/handsomezhuzhu/qquiz:latest
+```
 
 ## 默认账户
 
