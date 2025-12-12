@@ -121,7 +121,8 @@ class LLMService:
 **识别规则**：
 - 文档中可能包含中文或英文题目
 - 题目可能有多种格式，请灵活识别
-- 即使格式不标准，也请尽量提取题目内容
+- **重要**：只提取完整的题目，忽略任何不完整的题目（题目被截断、缺少选项、缺少关键信息等）
+- 如果题目看起来不完整（比如开头或结尾被切断），直接跳过该题目
 - 如果文档只是普通文章而没有题目，请返回空数组 []
 
 **题目类型识别** (严格使用以下4种类型之一)：
@@ -404,9 +405,58 @@ class LLMService:
             print(f"[Error] Document parsing failed: {str(e)}")
             raise Exception(f"Failed to parse document: {str(e)}")
 
+    def split_pdf_pages(self, pdf_bytes: bytes, pages_per_chunk: int = 4, overlap: int = 1) -> List[bytes]:
+        """
+        Split PDF into overlapping chunks to handle long documents.
+
+        Args:
+            pdf_bytes: PDF file content
+            pages_per_chunk: Number of pages per chunk (default: 4)
+            overlap: Number of overlapping pages between chunks (default: 1)
+
+        Returns:
+            List of PDF chunks as bytes
+        """
+        import PyPDF2
+        import io
+
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
+        total_pages = len(pdf_reader.pages)
+
+        # If PDF is small, don't split
+        if total_pages <= pages_per_chunk:
+            return [pdf_bytes]
+
+        print(f"[PDF Split] Total pages: {total_pages}, splitting into chunks of {pages_per_chunk} pages with {overlap} page overlap")
+
+        chunks = []
+        start = 0
+
+        while start < total_pages:
+            end = min(start + pages_per_chunk, total_pages)
+
+            # Create a new PDF with pages [start, end)
+            pdf_writer = PyPDF2.PdfWriter()
+            for page_num in range(start, end):
+                pdf_writer.add_page(pdf_reader.pages[page_num])
+
+            # Write to bytes
+            chunk_bytes = io.BytesIO()
+            pdf_writer.write(chunk_bytes)
+            chunk_bytes.seek(0)
+            chunks.append(chunk_bytes.getvalue())
+
+            print(f"[PDF Split] Chunk {len(chunks)}: pages {start+1}-{end}")
+
+            # Move to next chunk with overlap
+            start = end - overlap if end < total_pages else total_pages
+
+        return chunks
+
     async def parse_document_with_pdf(self, pdf_bytes: bytes, filename: str) -> List[Dict[str, Any]]:
         """
         Parse PDF document using Gemini's native PDF understanding.
+        Automatically splits large PDFs into overlapping chunks.
         Only works with Gemini provider.
 
         Args:
@@ -419,12 +469,50 @@ class LLMService:
         if self.provider != "gemini":
             raise ValueError("PDF parsing is only supported with Gemini provider")
 
+        # Split PDF into chunks
+        pdf_chunks = self.split_pdf_pages(pdf_bytes, pages_per_chunk=4, overlap=1)
+
+        print(f"[Gemini PDF] Processing {len(pdf_chunks)} chunk(s) for {filename}")
+
+        all_questions = []
+        # Process each chunk with fuzzy deduplication
+        for chunk_idx, chunk_bytes in enumerate(pdf_chunks):
+            print(f"[Gemini PDF] Processing chunk {chunk_idx + 1}/{len(pdf_chunks)}")
+
+            try:
+                questions = await self._parse_pdf_chunk(chunk_bytes, f"{filename}_chunk_{chunk_idx + 1}")
+                print(f"[Gemini PDF] Chunk {chunk_idx + 1} extracted {len(questions)} questions")
+
+                # Fuzzy deduplicate across chunks
+                from dedup_utils import is_duplicate_question
+
+                for q in questions:
+                    if not is_duplicate_question(q, all_questions, threshold=0.85):
+                        all_questions.append(q)
+                    else:
+                        print(f"[PDF Split] Skipped fuzzy duplicate from chunk {chunk_idx + 1}")
+
+            except Exception as e:
+                print(f"[Gemini PDF] Chunk {chunk_idx + 1} failed: {str(e)}")
+                # Continue with other chunks
+                continue
+
+        print(f"[Gemini PDF] Total questions extracted: {len(all_questions)} (after deduplication)")
+
+        return all_questions
+
+    async def _parse_pdf_chunk(self, pdf_bytes: bytes, chunk_name: str) -> List[Dict[str, Any]]:
+        """
+        Parse a single PDF chunk.
+        Internal method used by parse_document_with_pdf.
+        """
         prompt = """你是一个专业的试题解析专家。请仔细分析这个 PDF 文档，提取其中的所有试题。
 
 **识别规则**：
 - PDF 中可能包含中文或英文题目、图片、表格、公式
 - 题目可能有多种格式，请灵活识别
-- 即使格式不标准，也请尽量提取题目内容
+- **重要**：只提取完整的题目，忽略任何不完整的题目（题目被截断、缺少选项、缺少关键信息等）
+- 如果题目看起来不完整（比如开头或结尾被切断），直接跳过该题目
 - 题目内容如果包含代码或换行，请将换行符替换为\\n
 - 图片中的文字也要识别并提取
 
@@ -492,8 +580,8 @@ class LLMService:
 - **只返回一个 JSON 数组**，不要包含其他任何内容"""
 
         try:
-            print(f"[Gemini PDF] Processing PDF: {filename}", flush=True)
-            print(f"[Gemini PDF] File size: {len(pdf_bytes)} bytes", flush=True)
+            print(f"[Gemini PDF] Processing chunk: {chunk_name}", flush=True)
+            print(f"[Gemini PDF] Chunk size: {len(pdf_bytes)} bytes", flush=True)
 
             # Use Gemini's native PDF processing via REST API
             import base64

@@ -20,6 +20,7 @@ from services.document_parser import document_parser
 from services.llm_service import LLMService
 from services.config_service import load_llm_config
 from utils import is_allowed_file, calculate_content_hash
+from dedup_utils import is_duplicate_question
 
 router = APIRouter()
 
@@ -154,7 +155,11 @@ async def process_questions_with_dedup(
     llm_service=None
 ) -> ParseResult:
     """
-    Process parsed questions with deduplication logic.
+    Process parsed questions with fuzzy deduplication logic.
+
+    Uses a two-stage deduplication strategy:
+    1. Fast exact hash matching (for 100% identical questions)
+    2. Fuzzy similarity matching (for AI-generated variations)
 
     Args:
         exam_id: Target exam ID
@@ -170,17 +175,28 @@ async def process_questions_with_dedup(
     new_added = 0
     ai_answers_generated = 0
 
-    # Get existing content hashes for this exam
+    # Get existing questions for this exam (content for fuzzy matching)
     result = await db.execute(
-        select(Question.content_hash).where(Question.exam_id == exam_id)
+        select(Question.content, Question.content_hash).where(Question.exam_id == exam_id)
     )
-    existing_hashes = set(row[0] for row in result.all())
+    existing_questions_db = result.all()
+    existing_hashes = set(row[1] for row in existing_questions_db)
+    existing_questions = [{"content": row[0]} for row in existing_questions_db]
+
+    print(f"[Dedup] Checking against {len(existing_questions)} existing questions in database")
 
     # Insert only new questions
     for q_data in questions_data:
         content_hash = q_data.get("content_hash")
 
+        # Stage 1: Fast exact hash matching
         if content_hash in existing_hashes:
+            duplicates_removed += 1
+            print(f"[Dedup] Exact hash match - skipping", flush=True)
+            continue
+
+        # Stage 2: Fuzzy similarity matching (only if hash didn't match)
+        if is_duplicate_question(q_data, existing_questions, threshold=0.85):
             duplicates_removed += 1
             continue
 
@@ -222,7 +238,8 @@ async def process_questions_with_dedup(
             content_hash=content_hash
         )
         db.add(new_question)
-        existing_hashes.add(content_hash)  # Add to set to prevent duplicates in current batch
+        existing_hashes.add(content_hash)  # Prevent exact duplicates in current batch
+        existing_questions.append({"content": q_data["content"]})  # Prevent fuzzy duplicates in current batch
         new_added += 1
 
     await db.commit()
@@ -289,10 +306,39 @@ async def async_parse_and_save(
                         raise Exception("Document appears to be empty or too short")
 
                     print(f"[Exam {exam_id}] Text content length: {len(text_content)} chars", flush=True)
-                    print(f"[Exam {exam_id}] Document content preview:\n{text_content[:500]}\n{'...' if len(text_content) > 500 else ''}", flush=True)
-                    print(f"[Exam {exam_id}] Calling LLM to extract questions...", flush=True)
 
-                    questions_data = await llm_service.parse_document(text_content)
+                    # Check if document is too long and needs splitting
+                    if len(text_content) > 5000:
+                        print(f"[Exam {exam_id}] Document is long, splitting into chunks...", flush=True)
+                        text_chunks = document_parser.split_text_with_overlap(text_content, chunk_size=3000, overlap=1000)
+                        print(f"[Exam {exam_id}] Split into {len(text_chunks)} chunks", flush=True)
+
+                        all_questions = []
+
+                        for chunk_idx, chunk in enumerate(text_chunks):
+                            print(f"[Exam {exam_id}] Processing chunk {chunk_idx + 1}/{len(text_chunks)}...", flush=True)
+                            try:
+                                chunk_questions = await llm_service.parse_document(chunk)
+                                print(f"[Exam {exam_id}] Chunk {chunk_idx + 1} extracted {len(chunk_questions)} questions", flush=True)
+
+                                # Fuzzy deduplicate across chunks
+                                for q in chunk_questions:
+                                    # Use fuzzy matching to check for duplicates
+                                    if not is_duplicate_question(q, all_questions, threshold=0.85):
+                                        all_questions.append(q)
+                                    else:
+                                        print(f"[Exam {exam_id}] Skipped fuzzy duplicate from chunk {chunk_idx + 1}", flush=True)
+
+                            except Exception as chunk_error:
+                                print(f"[Exam {exam_id}] Chunk {chunk_idx + 1} failed: {str(chunk_error)}", flush=True)
+                                continue
+
+                        questions_data = all_questions
+                        print(f"[Exam {exam_id}] Total questions after fuzzy deduplication: {len(questions_data)}", flush=True)
+                    else:
+                        print(f"[Exam {exam_id}] Document content preview:\n{text_content[:500]}\n{'...' if len(text_content) > 500 else ''}", flush=True)
+                        print(f"[Exam {exam_id}] Calling LLM to extract questions...", flush=True)
+                        questions_data = await llm_service.parse_document(text_content)
 
             except Exception as parse_error:
                 print(f"[Exam {exam_id}] ⚠️ Parse error details: {type(parse_error).__name__}", flush=True)

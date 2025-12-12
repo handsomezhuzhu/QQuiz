@@ -3,7 +3,7 @@ Document Parser Service
 Supports: TXT, PDF, DOCX, XLSX
 """
 import io
-from typing import Optional
+from typing import Optional, List
 import PyPDF2
 from docx import Document
 import openpyxl
@@ -39,6 +39,38 @@ class DocumentParser:
             return '\n\n'.join(text_content)
         except Exception as e:
             raise Exception(f"Failed to parse PDF: {str(e)}")
+
+    @staticmethod
+    def split_text_with_overlap(text: str, chunk_size: int = 3000, overlap: int = 500) -> List[str]:
+        """
+        Split text into overlapping chunks for long documents.
+
+        Args:
+            text: Full text content
+            chunk_size: Characters per chunk (default: 3000)
+            overlap: Overlapping characters between chunks (default: 500)
+
+        Returns:
+            List of text chunks
+        """
+        if len(text) <= chunk_size:
+            return [text]
+
+        chunks = []
+        start = 0
+
+        while start < len(text):
+            end = min(start + chunk_size, len(text))
+            chunk = text[start:end]
+            chunks.append(chunk)
+
+            print(f"[Text Split] Chunk {len(chunks)}: chars {start}-{end}")
+
+            # Move to next chunk with overlap
+            start = end - overlap if end < len(text) else len(text)
+
+        print(f"[Text Split] Total chunks: {len(chunks)}")
+        return chunks
 
     @staticmethod
     async def parse_docx(file_content: bytes) -> str:

@@ -16,6 +16,7 @@ import QuizPlayer from './pages/QuizPlayer'
 import MistakeList from './pages/MistakeList'
 
 // Admin Pages
+import AdminPanel from './pages/AdminPanel'
 import AdminSettings from './pages/AdminSettings'
 
 function App() {
@@ -100,6 +101,15 @@ function App() {
             />
 
             {/* Admin Only Routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminPanel />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/admin/settings"
               element={

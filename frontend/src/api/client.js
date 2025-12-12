@@ -154,13 +154,27 @@ export const mistakeAPI = {
 
 // ============ Admin APIs ============
 export const adminAPI = {
-  // Get system config
-  getConfig: () =>
-    api.get('/admin/config'),
+  // Config
+  getConfig: () => api.get('/admin/config'),
+  updateConfig: (config) => api.put('/admin/config', config),
 
-  // Update system config
-  updateConfig: (config) =>
-    api.put('/admin/config', config)
+  // Users
+  getUsers: (skip = 0, limit = 50, search = null) =>
+    api.get('/admin/users', { params: { skip, limit, search } }),
+  createUser: (username, password, is_admin = false) =>
+    api.post('/admin/users', { username, password, is_admin }),
+  updateUser: (userId, data) =>
+    api.put(`/admin/users/${userId}`, data),
+  deleteUser: (userId) =>
+    api.delete(`/admin/users/${userId}`),
+
+  // Statistics
+  getStatistics: () => api.get('/admin/statistics'),
+  getHealth: () => api.get('/admin/health'),
+
+  // Export
+  exportUsers: () => api.get('/admin/export/users', { responseType: 'blob' }),
+  exportStatistics: () => api.get('/admin/export/statistics', { responseType: 'blob' })
 }
 
 export default api

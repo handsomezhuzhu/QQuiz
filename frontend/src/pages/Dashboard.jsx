@@ -7,7 +7,7 @@ import { examAPI, mistakeAPI } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 import {
-  FolderOpen, XCircle, TrendingUp, BookOpen, ArrowRight, Settings
+  FolderOpen, XCircle, TrendingUp, BookOpen, ArrowRight, Settings, Shield
 } from 'lucide-react'
 import { getStatusColor, getStatusText, formatRelativeTime, calculateProgress } from '../utils/helpers'
 
@@ -177,15 +177,24 @@ export const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold mb-1">管理员功能</h3>
-                <p className="text-sm text-primary-100">配置系统设置</p>
+                <p className="text-sm text-primary-100">用户管理、系统统计、配置设置</p>
               </div>
-              <button
-                onClick={() => navigate('/admin/settings')}
-                className="bg-white text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-primary-50 transition-colors flex items-center gap-2"
-              >
-                <Settings className="h-5 w-5" />
-                系统设置
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="bg-white text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-primary-50 transition-colors flex items-center gap-2"
+                >
+                  <Shield className="h-5 w-5" />
+                  管理面板
+                </button>
+                <button
+                  onClick={() => navigate('/admin/settings')}
+                  className="bg-white/90 text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-white transition-colors flex items-center gap-2"
+                >
+                  <Settings className="h-5 w-5" />
+                  系统设置
+                </button>
+              </div>
             </div>
           </div>
         )}
