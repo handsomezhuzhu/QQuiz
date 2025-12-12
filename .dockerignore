@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# 测试和临时文件
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+test_data/
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 上传文件
+uploads/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# 文档
+docs/
+README.md
+*.md
+
+# 环境变量
+.env
+.env.*
+
+# 其他
+.DS_Store
+Thumbs.db

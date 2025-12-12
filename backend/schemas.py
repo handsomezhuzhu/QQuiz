@@ -11,10 +11,24 @@ from models import ExamStatus, QuestionType
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
+    is_admin: bool = False  # 支持管理员创建用户时指定角色
 
     @validator('username')
     def username_alphanumeric(cls, v):
         if not v.replace('_', '').replace('-', '').isalnum():
+            raise ValueError('Username must be alphanumeric (allows _ and -)')
+        return v
+
+
+class UserUpdate(BaseModel):
+    """用户更新 Schema（所有字段可选）"""
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
+    password: Optional[str] = Field(None, min_length=6)
+    is_admin: Optional[bool] = None
+
+    @validator('username')
+    def username_alphanumeric(cls, v):
+        if v is not None and not v.replace('_', '').replace('-', '').isalnum():
             raise ValueError('Username must be alphanumeric (allows _ and -)')
         return v
 
@@ -37,6 +51,14 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserListResponse(BaseModel):
+    """用户列表响应（包含分页信息）"""
+    users: List[dict]  # 包含额外统计信息的用户列表
+    total: int
+    skip: int
+    limit: int
 
 
 # ============ System Config Schemas ============

@@ -118,47 +118,83 @@ class LLMService:
         """
         prompt = """你是一个专业的试题解析专家。请仔细分析下面的文档内容，提取其中的所有试题。
 
-请注意：
+**识别规则**：
 - 文档中可能包含中文或英文题目
 - 题目可能有多种格式，请灵活识别
 - 即使格式不标准，也请尽量提取题目内容
 - 如果文档只是普通文章而没有题目，请返回空数组 []
 
-对于每道题目，请识别：
-1. 题目内容 (完整的题目文字)
-2. 题目类型（**只能**使用以下4种类型之一）：
-   - single：单选题
-   - multiple：多选题
-   - judge：判断题
-   - short：简答题（包括问答题、计算题、证明题、填空题等所有非选择题）
-3. 选项 (仅针对选择题，格式: ["A. 选项1", "B. 选项2", ...])
-4. 正确答案 (请仔细查找文档中的答案。如果确实没有答案，可以填 null)
-5. 解析/说明 (如果有的话)
+**题目类型识别** (严格使用以下4种类型之一)：
+1. **single** - 单选题：只有一个正确答案的选择题
+2. **multiple** - 多选题：有多个正确答案的选择题（答案格式如：AB、ABC、ACD等）
+3. **judge** - 判断题：对错/是非/True False题目
+4. **short** - 简答题：包括问答、计算、证明、填空、编程等所有非选择题
 
-**重要**：题目类型必须是 single、multiple、judge、short 之一，不要使用其他类型名称！
+**多选题识别关键词**：
+- 明确标注"多选"、"多项选择"、"Multiple Choice"
+- 题干中包含"可能"、"正确的有"、"包括"等
+- 答案是多个字母组合（如：ABC、BD、ABCD）
 
-返回格式：请**只返回** JSON 数组，不要有任何其他文字或 markdown 代码块：
+**每道题目提取字段**：
+1. **content**: 完整的题目文字（去除题号）
+2. **type**: 题目类型（single/multiple/judge/short）
+3. **options**: 选项数组（仅选择题，格式: ["A. 选项1", "B. 选项2", ...]）
+4. **answer**: 正确答案
+   - 单选题: 单个字母 (如 "A"、"B")
+   - 多选题: 多个字母无空格 (如 "AB"、"ABC"、"BD")
+   - 判断题: "对"/"错"、"正确"/"错误"、"True"/"False"
+   - 简答题: 完整答案文本，如果没有答案填 null
+5. **analysis**: 解析说明（如果有）
+
+**JSON 格式要求**：
+- 必须返回一个完整的 JSON 数组 (以 [ 开始，以 ] 结束)
+- 不要包含 markdown 代码块标记 (```json 或 ```)
+- 不要包含任何解释性文字
+- 字符串中的特殊字符必须正确转义（换行用 \\n，引号用 \\"，反斜杠用 \\\\）
+- 不要在字符串值中使用未转义的控制字符
+
+**返回格式示例**：
 [
   {{
-    "content": "题目内容",
+    "content": "下列关于Python的描述，正确的是",
     "type": "single",
-    "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"],
-    "answer": "A",
-    "analysis": "解析说明"
+    "options": ["A. Python是编译型语言", "B. Python支持面向对象编程", "C. Python不支持函数式编程", "D. Python只能用于Web开发"],
+    "answer": "B",
+    "analysis": "Python是解释型语言，支持多种编程范式"
   }},
-  ...
+  {{
+    "content": "以下哪些是Python的优点（多选）",
+    "type": "multiple",
+    "options": ["A. 语法简洁", "B. 库丰富", "C. 执行速度最快", "D. 易于学习"],
+    "answer": "ABD",
+    "analysis": "Python优点是语法简洁、库丰富、易学，但执行速度不是最快的"
+  }},
+  {{
+    "content": "Python是一种高级编程语言",
+    "type": "judge",
+    "options": [],
+    "answer": "对",
+    "analysis": null
+  }},
+  {{
+    "content": "请解释Python中的装饰器是什么",
+    "type": "short",
+    "options": [],
+    "answer": "装饰器是Python中一种特殊的函数，用于修改其他函数的行为...",
+    "analysis": null
+  }}
 ]
 
-文档内容：
+**文档内容**：
 ---
 {content}
 ---
 
-重要提示：
-- 仔细阅读文档内容
-- 识别所有看起来像试题的内容
-- 如果文档中没有题目（比如只是普通文章），返回 []
-- **只返回 JSON 数组**，不要包含 ```json 或其他标记"""
+**最后提醒**：
+- 仔细识别多选题（看题干、看答案格式）
+- 单选和多选容易混淆，请特别注意区分
+- 如果文档中没有题目，返回 []
+- 只返回 JSON 数组，不要有任何其他内容"""
 
         try:
             if self.provider == "anthropic":
@@ -241,6 +277,14 @@ class LLMService:
                     result = result[:end_idx + 1]
 
             result = result.strip()
+
+            # Additional cleanup: fix common JSON issues
+            # 1. Remove trailing commas before closing brackets
+            import re
+            result = re.sub(r',(\s*[}\]])', r'\1', result)
+
+            # 2. Fix unescaped quotes in string values (basic attempt)
+            # This is tricky and may not catch all cases, but helps with common issues
 
             # Log the cleaned result for debugging
             print(f"[LLM Cleaned JSON] Length: {len(result)} chars")
@@ -377,42 +421,61 @@ class LLMService:
 
         prompt = """你是一个专业的试题解析专家。请仔细分析这个 PDF 文档，提取其中的所有试题。
 
-请注意：
-- PDF 中可能包含中文或英文题目
+**识别规则**：
+- PDF 中可能包含中文或英文题目、图片、表格、公式
 - 题目可能有多种格式，请灵活识别
 - 即使格式不标准，也请尽量提取题目内容
-- 题目内容如果包含代码或换行，请将换行符替换为空格或\\n
+- 题目内容如果包含代码或换行，请将换行符替换为\\n
+- 图片中的文字也要识别并提取
 
-对于每道题目，请识别：
-1. 题目内容 (完整的题目文字，如果有代码请保持在一行或用\\n表示换行)
-2. 题目类型（**只能**使用以下4种类型之一）：
-   - single：单选题
-   - multiple：多选题
-   - judge：判断题
-   - short：简答题（包括问答题、计算题、证明题、填空题等所有非选择题）
-3. 选项 (仅针对选择题，格式: ["A. 选项1", "B. 选项2", ...])
-4. 正确答案 (请仔细查找文档中的答案。如果确实没有答案，可以填 null)
-5. 解析/说明 (如果有的话)
+**题目类型识别** (严格使用以下4种类型之一)：
+1. **single** - 单选题：只有一个正确答案的选择题
+2. **multiple** - 多选题：有多个正确答案的选择题（答案格式如：AB、ABC、ACD等）
+3. **judge** - 判断题：对错/是非/True False题目
+4. **short** - 简答题：包括问答、计算、证明、填空、编程等所有非选择题
 
-**重要**：题目类型必须是 single、multiple、judge、short 之一，不要使用其他类型名称！
+**多选题识别关键词**：
+- 明确标注"多选"、"多项选择"、"Multiple Choice"
+- 题干中包含"可能"、"正确的有"、"包括"等
+- 答案是多个字母组合（如：ABC、BD、ABCD）
 
-返回格式要求：
+**每道题目提取字段**：
+1. **content**: 完整的题目文字（去除题号，换行用\\n表示）
+2. **type**: 题目类型（single/multiple/judge/short）
+3. **options**: 选项数组（仅选择题，格式: ["A. 选项1", "B. 选项2", ...]）
+4. **answer**: 正确答案
+   - 单选题: 单个字母 (如 "A"、"B")
+   - 多选题: 多个字母无空格 (如 "AB"、"ABC"、"BD")
+   - 判断题: "对"/"错"、"正确"/"错误"、"True"/"False"
+   - 简答题: 完整答案文本，如果没有答案填 null
+5. **analysis**: 解析说明（如果有）
+
+**JSON 格式要求**：
 1. **必须**返回一个完整的 JSON 数组（以 [ 开始，以 ] 结束）
 2. **不要**返回 JSONL 格式（每行一个 JSON 对象）
 3. **不要**包含 markdown 代码块标记（```json 或 ```）
 4. **不要**包含任何解释性文字
+5. 字符串中的特殊字符必须正确转义（换行用 \\n，引号用 \\"，反斜杠用 \\\\）
+6. 不要在字符串值中使用未转义的控制字符
 
-正确的格式示例：
+**返回格式示例**：
 [
   {{
-    "content": "题目内容",
+    "content": "下列关于Python的描述，正确的是",
     "type": "single",
-    "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"],
-    "answer": "A",
-    "analysis": "解析说明"
+    "options": ["A. Python是编译型语言", "B. Python支持面向对象编程", "C. Python不支持函数式编程", "D. Python只能用于Web开发"],
+    "answer": "B",
+    "analysis": "Python是解释型语言，支持多种编程范式"
   }},
   {{
-    "content": "第二道题",
+    "content": "以下哪些是Python的优点（多选）",
+    "type": "multiple",
+    "options": ["A. 语法简洁", "B. 库丰富", "C. 执行速度最快", "D. 易于学习"],
+    "answer": "ABD",
+    "analysis": "Python优点是语法简洁、库丰富、易学，但执行速度不是最快的"
+  }},
+  {{
+    "content": "Python是一种高级编程语言",
     "type": "judge",
     "options": [],
     "answer": "对",
@@ -420,9 +483,10 @@ class LLMService:
   }}
 ]
 
-重要提示：
+**最后提醒**：
 - 请仔细查看 PDF 的每一页
-- 识别所有看起来像试题的内容
+- 仔细识别多选题（看题干、看答案格式）
+- 单选和多选容易混淆，请特别注意区分
 - 如果找不到明确的选项，可以根据上下文推断题目类型
 - 题目内容中的换行请用\\n或空格替换，确保 JSON 格式正确
 - **只返回一个 JSON 数组**，不要包含其他任何内容"""
@@ -500,6 +564,11 @@ class LLMService:
                     result = result[:end_idx + 1]
 
             result = result.strip()
+
+            # Additional cleanup: fix common JSON issues
+            # 1. Remove trailing commas before closing brackets
+            import re
+            result = re.sub(r',(\s*[}\]])', r'\1', result)
 
             # Log the cleaned result for debugging
             print(f"[LLM Cleaned JSON] Length: {len(result)} chars", flush=True)

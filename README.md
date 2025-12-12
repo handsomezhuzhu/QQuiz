@@ -16,24 +16,32 @@ QQuiz 是一个支持 Docker/源码双模部署的智能刷题平台，核心功
 
 ## 快速开始
 
-### 方式一：Docker Compose (推荐)
+### 单容器部署（推荐）
+
+一个容器包含前后端和 SQLite 数据库：
 
 ```bash
-# 1. 克隆项目
-git clone <repository-url>
-cd QQuiz
-
-# 2. 配置环境变量
+# 1. 配置环境变量
 cp .env.example .env
-# 编辑 .env，填入你的 API Key 等配置
+# 编辑 .env，填入你的 API Key
 
-# 3. 启动服务
+# 2. 启动服务
+docker-compose -f docker-compose-single.yml up -d
+
+# 3. 访问应用: http://localhost:8000
+# API 文档: http://localhost:8000/docs
+```
+
+### 传统部署（3 个容器）
+
+前后端分离 + MySQL：
+
+```bash
+# 启动服务
 docker-compose up -d
 
-# 4. 访问应用
 # 前端: http://localhost:3000
 # 后端: http://localhost:8000
-# API 文档: http://localhost:8000/docs
 ```
 
 ### 方式二：本地运行
