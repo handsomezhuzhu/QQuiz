@@ -453,7 +453,7 @@ class LLMService:
 
         return chunks
 
-    async def parse_document_with_pdf(self, pdf_bytes: bytes, filename: str) -> List[Dict[str, Any]]:
+    async def parse_document_with_pdf(self, pdf_bytes: bytes, filename: str, exam_id: int = None) -> List[Dict[str, Any]]:
         """
         Parse PDF document using Gemini's native PDF understanding.
         Automatically splits large PDFs into overlapping chunks.
@@ -462,6 +462,7 @@ class LLMService:
         Args:
             pdf_bytes: PDF file content as bytes
             filename: Original filename for logging
+            exam_id: Optional exam ID for progress updates
 
         Returns:
             List of question dictionaries
@@ -471,17 +472,44 @@ class LLMService:
 
         # Split PDF into chunks
         pdf_chunks = self.split_pdf_pages(pdf_bytes, pages_per_chunk=4, overlap=1)
+        total_chunks = len(pdf_chunks)
 
-        print(f"[Gemini PDF] Processing {len(pdf_chunks)} chunk(s) for {filename}")
+        print(f"[Gemini PDF] Processing {total_chunks} chunk(s) for {filename}")
+
+        # Send progress update if exam_id provided
+        if exam_id:
+            from services.progress_service import progress_service, ProgressUpdate, ProgressStatus
+            await progress_service.update_progress(ProgressUpdate(
+                exam_id=exam_id,
+                status=ProgressStatus.SPLITTING,
+                message=f"PDF已拆分为 {total_chunks} 个部分",
+                progress=15.0,
+                total_chunks=total_chunks
+            ))
 
         all_questions = []
         # Process each chunk with fuzzy deduplication
         for chunk_idx, chunk_bytes in enumerate(pdf_chunks):
-            print(f"[Gemini PDF] Processing chunk {chunk_idx + 1}/{len(pdf_chunks)}")
+            current_chunk = chunk_idx + 1
+            chunk_progress = 15.0 + (60.0 * current_chunk / total_chunks)
+
+            print(f"[Gemini PDF] Processing chunk {current_chunk}/{total_chunks}")
+
+            # Send progress update
+            if exam_id:
+                await progress_service.update_progress(ProgressUpdate(
+                    exam_id=exam_id,
+                    status=ProgressStatus.PROCESSING_CHUNK,
+                    message=f"正在处理第 {current_chunk}/{total_chunks} 部分...",
+                    progress=chunk_progress,
+                    total_chunks=total_chunks,
+                    current_chunk=current_chunk,
+                    questions_extracted=len(all_questions)
+                ))
 
             try:
-                questions = await self._parse_pdf_chunk(chunk_bytes, f"{filename}_chunk_{chunk_idx + 1}")
-                print(f"[Gemini PDF] Chunk {chunk_idx + 1} extracted {len(questions)} questions")
+                questions = await self._parse_pdf_chunk(chunk_bytes, f"{filename}_chunk_{current_chunk}")
+                print(f"[Gemini PDF] Chunk {current_chunk} extracted {len(questions)} questions")
 
                 # Fuzzy deduplicate across chunks
                 from dedup_utils import is_duplicate_question
@@ -490,14 +518,26 @@ class LLMService:
                     if not is_duplicate_question(q, all_questions, threshold=0.85):
                         all_questions.append(q)
                     else:
-                        print(f"[PDF Split] Skipped fuzzy duplicate from chunk {chunk_idx + 1}")
+                        print(f"[PDF Split] Skipped fuzzy duplicate from chunk {current_chunk}")
 
             except Exception as e:
-                print(f"[Gemini PDF] Chunk {chunk_idx + 1} failed: {str(e)}")
+                print(f"[Gemini PDF] Chunk {current_chunk} failed: {str(e)}")
                 # Continue with other chunks
                 continue
 
         print(f"[Gemini PDF] Total questions extracted: {len(all_questions)} (after deduplication)")
+
+        # Send final progress for PDF processing
+        if exam_id:
+            await progress_service.update_progress(ProgressUpdate(
+                exam_id=exam_id,
+                status=ProgressStatus.DEDUPLICATING,
+                message=f"PDF处理完成，提取了 {len(all_questions)} 个题目",
+                progress=75.0,
+                total_chunks=total_chunks,
+                current_chunk=total_chunks,
+                questions_extracted=len(all_questions)
+            ))
 
         return all_questions
 

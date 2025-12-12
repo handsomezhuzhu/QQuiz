@@ -82,3 +82,42 @@ async def get_optional_user(
         return await get_current_user(credentials, db)
     except HTTPException:
         return None
+
+
+async def get_current_user_from_token(token: str, db: AsyncSession) -> User:
+    """
+    Get current user from JWT token string (for SSE with query params).
+
+    Args:
+        token: JWT token string
+        db: Database session
+
+    Returns:
+        User object
+
+    Raises:
+        Exception: If token is invalid or user not found
+    """
+    # Decode token
+    payload = decode_access_token(token)
+    if payload is None:
+        raise Exception("Invalid token")
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise Exception("Invalid token payload")
+
+    # Convert user_id to int if it's a string
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        raise Exception("Invalid user ID")
+
+    # Get user from database
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise Exception("User not found")
+
+    return user

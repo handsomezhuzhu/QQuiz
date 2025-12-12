@@ -2,12 +2,14 @@
 Exam Router - Handles exam creation, file upload, and deduplication
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from typing import List, Optional
 from datetime import datetime, timedelta
 import os
 import aiofiles
+import json
 
 from database import get_db
 from models import User, Exam, Question, ExamStatus, SystemConfig
@@ -19,6 +21,7 @@ from services.auth_service import get_current_user
 from services.document_parser import document_parser
 from services.llm_service import LLMService
 from services.config_service import load_llm_config
+from services.progress_service import progress_service
 from utils import is_allowed_file, calculate_content_hash
 from dedup_utils import is_duplicate_question
 
@@ -264,9 +267,11 @@ async def async_parse_and_save(
 ):
     """
     Background task to parse document and save questions with deduplication.
+    Sends real-time progress updates via SSE.
     """
     from database import AsyncSessionLocal
     from sqlalchemy import select
+    from services.progress_service import ProgressUpdate, ProgressStatus
 
     async with AsyncSessionLocal() as db:
         try:
@@ -275,6 +280,14 @@ async def async_parse_and_save(
             exam = result.scalar_one()
             exam.status = ExamStatus.PROCESSING
             await db.commit()
+
+            # Send initial progress
+            await progress_service.update_progress(ProgressUpdate(
+                exam_id=exam_id,
+                status=ProgressStatus.PARSING,
+                message="开始解析文档...",
+                progress=5.0
+            ))
 
             # Load LLM configuration from database
             llm_config = await load_llm_config(db)
@@ -293,11 +306,26 @@ async def async_parse_and_save(
                     # Use Gemini's native PDF processing
                     print(f"[Exam {exam_id}] Using Gemini native PDF processing", flush=True)
                     print(f"[Exam {exam_id}] PDF file size: {len(file_content)} bytes", flush=True)
-                    questions_data = await llm_service.parse_document_with_pdf(file_content, filename)
+
+                    await progress_service.update_progress(ProgressUpdate(
+                        exam_id=exam_id,
+                        status=ProgressStatus.PARSING,
+                        message="使用Gemini解析PDF文档...",
+                        progress=10.0
+                    ))
+
+                    questions_data = await llm_service.parse_document_with_pdf(file_content, filename, exam_id)
                 else:
                     # Extract text first, then parse
                     if is_pdf:
                         print(f"[Exam {exam_id}] ⚠️ Warning: Using text extraction for PDF (provider does not support native PDF)", flush=True)
+
+                    await progress_service.update_progress(ProgressUpdate(
+                        exam_id=exam_id,
+                        status=ProgressStatus.PARSING,
+                        message="提取文档文本内容...",
+                        progress=10.0
+                    ))
 
                     print(f"[Exam {exam_id}] Extracting text from document...", flush=True)
                     text_content = await document_parser.parse_file(file_content, filename)
@@ -309,17 +337,40 @@ async def async_parse_and_save(
 
                     # Check if document is too long and needs splitting
                     if len(text_content) > 5000:
-                        print(f"[Exam {exam_id}] Document is long, splitting into chunks...", flush=True)
                         text_chunks = document_parser.split_text_with_overlap(text_content, chunk_size=3000, overlap=1000)
-                        print(f"[Exam {exam_id}] Split into {len(text_chunks)} chunks", flush=True)
+                        total_chunks = len(text_chunks)
+
+                        print(f"[Exam {exam_id}] Document is long, splitting into chunks...", flush=True)
+                        print(f"[Exam {exam_id}] Split into {total_chunks} chunks", flush=True)
+
+                        await progress_service.update_progress(ProgressUpdate(
+                            exam_id=exam_id,
+                            status=ProgressStatus.SPLITTING,
+                            message=f"文档已拆分为 {total_chunks} 个部分",
+                            progress=15.0,
+                            total_chunks=total_chunks
+                        ))
 
                         all_questions = []
 
                         for chunk_idx, chunk in enumerate(text_chunks):
-                            print(f"[Exam {exam_id}] Processing chunk {chunk_idx + 1}/{len(text_chunks)}...", flush=True)
+                            current_chunk = chunk_idx + 1
+                            chunk_progress = 15.0 + (60.0 * current_chunk / total_chunks)
+
+                            await progress_service.update_progress(ProgressUpdate(
+                                exam_id=exam_id,
+                                status=ProgressStatus.PROCESSING_CHUNK,
+                                message=f"正在处理第 {current_chunk}/{total_chunks} 部分...",
+                                progress=chunk_progress,
+                                total_chunks=total_chunks,
+                                current_chunk=current_chunk,
+                                questions_extracted=len(all_questions)
+                            ))
+
+                            print(f"[Exam {exam_id}] Processing chunk {current_chunk}/{total_chunks}...", flush=True)
                             try:
                                 chunk_questions = await llm_service.parse_document(chunk)
-                                print(f"[Exam {exam_id}] Chunk {chunk_idx + 1} extracted {len(chunk_questions)} questions", flush=True)
+                                print(f"[Exam {exam_id}] Chunk {current_chunk} extracted {len(chunk_questions)} questions", flush=True)
 
                                 # Fuzzy deduplicate across chunks
                                 for q in chunk_questions:
@@ -327,7 +378,7 @@ async def async_parse_and_save(
                                     if not is_duplicate_question(q, all_questions, threshold=0.85):
                                         all_questions.append(q)
                                     else:
-                                        print(f"[Exam {exam_id}] Skipped fuzzy duplicate from chunk {chunk_idx + 1}", flush=True)
+                                        print(f"[Exam {exam_id}] Skipped fuzzy duplicate from chunk {current_chunk}", flush=True)
 
                             except Exception as chunk_error:
                                 print(f"[Exam {exam_id}] Chunk {chunk_idx + 1} failed: {str(chunk_error)}", flush=True)
@@ -335,10 +386,36 @@ async def async_parse_and_save(
 
                         questions_data = all_questions
                         print(f"[Exam {exam_id}] Total questions after fuzzy deduplication: {len(questions_data)}", flush=True)
+
+                        await progress_service.update_progress(ProgressUpdate(
+                            exam_id=exam_id,
+                            status=ProgressStatus.DEDUPLICATING,
+                            message=f"所有部分处理完成，提取了 {len(questions_data)} 个题目",
+                            progress=75.0,
+                            total_chunks=total_chunks,
+                            current_chunk=total_chunks,
+                            questions_extracted=len(questions_data)
+                        ))
                     else:
                         print(f"[Exam {exam_id}] Document content preview:\n{text_content[:500]}\n{'...' if len(text_content) > 500 else ''}", flush=True)
                         print(f"[Exam {exam_id}] Calling LLM to extract questions...", flush=True)
+
+                        await progress_service.update_progress(ProgressUpdate(
+                            exam_id=exam_id,
+                            status=ProgressStatus.PARSING,
+                            message="正在提取题目...",
+                            progress=30.0
+                        ))
+
                         questions_data = await llm_service.parse_document(text_content)
+
+                        await progress_service.update_progress(ProgressUpdate(
+                            exam_id=exam_id,
+                            status=ProgressStatus.DEDUPLICATING,
+                            message=f"提取了 {len(questions_data)} 个题目",
+                            progress=60.0,
+                            questions_extracted=len(questions_data)
+                        ))
 
             except Exception as parse_error:
                 print(f"[Exam {exam_id}] ⚠️ Parse error details: {type(parse_error).__name__}", flush=True)
@@ -351,6 +428,14 @@ async def async_parse_and_save(
                 raise Exception("No questions found in document")
 
             # Process questions with deduplication and AI answer generation
+            await progress_service.update_progress(ProgressUpdate(
+                exam_id=exam_id,
+                status=ProgressStatus.SAVING,
+                message="正在去重并保存题目到数据库...",
+                progress=80.0,
+                questions_extracted=len(questions_data)
+            ))
+
             print(f"[Exam {exam_id}] Processing questions with deduplication...")
             parse_result = await process_questions_with_dedup(exam_id, questions_data, db, llm_service)
 
@@ -370,8 +455,27 @@ async def async_parse_and_save(
 
             print(f"[Exam {exam_id}] ✅ {parse_result.message}")
 
+            # Send completion progress
+            await progress_service.update_progress(ProgressUpdate(
+                exam_id=exam_id,
+                status=ProgressStatus.COMPLETED,
+                message=f"完成！添加了 {parse_result.new_added} 个题目（去重 {parse_result.duplicates_removed} 个）",
+                progress=100.0,
+                questions_extracted=parse_result.total_parsed,
+                questions_added=parse_result.new_added,
+                duplicates_removed=parse_result.duplicates_removed
+            ))
+
         except Exception as e:
             print(f"[Exam {exam_id}] ❌ Error: {str(e)}")
+
+            # Send error progress
+            await progress_service.update_progress(ProgressUpdate(
+                exam_id=exam_id,
+                status=ProgressStatus.FAILED,
+                message=f"处理失败：{str(e)}",
+                progress=0.0
+            ))
 
             # Update exam status to failed
             result = await db.execute(select(Exam).where(Exam.id == exam_id))
@@ -547,6 +651,70 @@ async def get_exam_detail(
         )
 
     return exam
+
+
+@router.get("/{exam_id}/progress")
+async def get_exam_progress(
+    exam_id: int,
+    token: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get real-time progress updates for exam document parsing (SSE endpoint)
+
+    Returns Server-Sent Events stream with progress updates
+    """
+    # Authenticate using token from query parameter (EventSource doesn't support custom headers)
+    from services.auth_service import get_current_user_from_token
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token required"
+        )
+
+    try:
+        current_user = await get_current_user_from_token(token, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+
+    # Verify exam belongs to user
+    result = await db.execute(
+        select(Exam).where(
+            and_(Exam.id == exam_id, Exam.user_id == current_user.id)
+        )
+    )
+    exam = result.scalar_one_or_none()
+
+    if not exam:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found"
+        )
+
+    async def event_generator():
+        """Generate SSE events"""
+        async for update in progress_service.subscribe(exam_id):
+            # Format as SSE
+            data = json.dumps(update.to_dict())
+            yield f"data: {data}\n\n"
+
+            # Stop if completed or failed
+            if update.status in ["completed", "failed"]:
+                break
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
 
 
 @router.delete("/{exam_id}", status_code=status.HTTP_204_NO_CONTENT)

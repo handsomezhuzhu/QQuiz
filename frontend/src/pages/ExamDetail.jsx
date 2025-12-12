@@ -1,10 +1,11 @@
 /**
- * Exam Detail Page - with append upload and status polling
+ * Exam Detail Page - with real-time parsing progress via SSE
  */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { examAPI, questionAPI } from '../api/client'
 import Layout from '../components/Layout'
+import ParsingProgress from '../components/ParsingProgress'
 import {
   ArrowLeft, Upload, Play, Loader, FileText, AlertCircle, RefreshCw
 } from 'lucide-react'
@@ -28,16 +29,20 @@ export const ExamDetail = () => {
   const [uploading, setUploading] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [uploadFile, setUploadFile] = useState(null)
+  const [progress, setProgress] = useState(null)
+
+  const eventSourceRef = useRef(null)
 
   useEffect(() => {
     loadExamDetail()
 
-    // Start polling if status is processing
-    const interval = setInterval(() => {
-      pollExamStatus()
-    }, 3000)
-
-    return () => clearInterval(interval)
+    // Cleanup on unmount
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+    }
   }, [examId])
 
   const loadExamDetail = async () => {
@@ -49,6 +54,11 @@ export const ExamDetail = () => {
 
       setExam(examRes.data)
       setQuestions(questionsRes.data.questions)
+
+      // Connect to SSE if exam is processing
+      if (examRes.data.status === 'processing') {
+        connectSSE()
+      }
     } catch (error) {
       console.error('Failed to load exam:', error)
       toast.error('加载题库失败')
@@ -57,22 +67,53 @@ export const ExamDetail = () => {
     }
   }
 
-  const pollExamStatus = async () => {
-    try {
-      const response = await examAPI.getDetail(examId)
-      const newExam = response.data
+  const connectSSE = () => {
+    // Close existing connection if any
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+    }
 
-      // If status changed from processing to ready
-      if (exam?.status === 'processing' && newExam.status === 'ready') {
-        toast.success('文档解析完成！')
-        await loadExamDetail() // Reload to get updated questions
-      } else if (exam?.status === 'processing' && newExam.status === 'failed') {
-        toast.error('文档解析失败')
+    console.log('[SSE] Connecting to progress stream for exam', examId)
+
+    const token = localStorage.getItem('token')
+    const url = `/api/exams/${examId}/progress?token=${encodeURIComponent(token)}`
+
+    const eventSource = new EventSource(url)
+    eventSourceRef.current = eventSource
+
+    eventSource.onmessage = (event) => {
+      try {
+        const progressData = JSON.parse(event.data)
+        console.log('[SSE] Progress update:', progressData)
+
+        setProgress(progressData)
+
+        // Update exam status if completed or failed
+        if (progressData.status === 'completed') {
+          toast.success(progressData.message)
+          setExam(prev => ({ ...prev, status: 'ready' }))
+          loadExamDetail() // Reload to get updated questions
+          eventSource.close()
+          eventSourceRef.current = null
+        } else if (progressData.status === 'failed') {
+          toast.error(progressData.message)
+          setExam(prev => ({ ...prev, status: 'failed' }))
+          eventSource.close()
+          eventSourceRef.current = null
+        }
+      } catch (error) {
+        console.error('[SSE] Failed to parse progress data:', error)
       }
+    }
 
-      setExam(newExam)
-    } catch (error) {
-      console.error('Failed to poll exam:', error)
+    eventSource.onerror = (error) => {
+      console.error('[SSE] Connection error:', error)
+      eventSource.close()
+      eventSourceRef.current = null
+    }
+
+    eventSource.onopen = () => {
+      console.log('[SSE] Connection established')
     }
   }
 
@@ -96,9 +137,13 @@ export const ExamDetail = () => {
       toast.success('文档上传成功，正在解析并去重...')
       setShowUploadModal(false)
       setUploadFile(null)
-      await loadExamDetail()
+      setExam(prev => ({ ...prev, status: 'processing' }))
+
+      // Connect to SSE for real-time progress
+      connectSSE()
     } catch (error) {
       console.error('Failed to append document:', error)
+      toast.error('文档上传失败')
     } finally {
       setUploading(false)
     }
@@ -138,7 +183,7 @@ export const ExamDetail = () => {
   const isProcessing = exam.status === 'processing'
   const isReady = exam.status === 'ready'
   const isFailed = exam.status === 'failed'
-  const progress = calculateProgress(exam.current_index, exam.total_questions)
+  const quizProgress = calculateProgress(exam.current_index, exam.total_questions)
 
   return (
     <Layout>
@@ -151,6 +196,11 @@ export const ExamDetail = () => {
           <ArrowLeft className="h-5 w-5" />
           返回题库列表
         </button>
+
+        {/* Parsing Progress (only shown when processing) */}
+        {isProcessing && progress && (
+          <ParsingProgress progress={progress} />
+        )}
 
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
@@ -223,7 +273,7 @@ export const ExamDetail = () => {
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-primary-600 h-3 rounded-full transition-all"
-                  style={{ width: `${progress}%` }}
+                  style={{ width: `${quizProgress}%` }}
                 ></div>
               </div>
             </div>
