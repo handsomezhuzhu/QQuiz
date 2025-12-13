@@ -1,7 +1,7 @@
 """
 Exam Router - Handles exam creation, file upload, and deduplication
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
@@ -537,6 +537,7 @@ async def async_parse_and_save(
 @router.post("/create", response_model=ExamUploadResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def create_exam_with_upload(
+    request: Request,
     background_tasks: BackgroundTasks,
     title: str = Form(...),
     file: UploadFile = File(...),
@@ -587,6 +588,7 @@ async def create_exam_with_upload(
 @router.post("/{exam_id}/append", response_model=ExamUploadResponse)
 @limiter.limit("10/minute")
 async def append_document_to_exam(
+    request: Request,
     exam_id: int,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),

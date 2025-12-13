@@ -1,7 +1,7 @@
 """
 Authentication Router
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
@@ -66,6 +66,7 @@ async def register(
 @router.post("/login", response_model=Token)
 @limiter.limit("5/minute")
 async def login(
+    request: Request,
     user_data: UserLogin,
     db: AsyncSession = Depends(get_db)
 ):
