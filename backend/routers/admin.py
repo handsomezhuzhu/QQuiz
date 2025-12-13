@@ -24,6 +24,18 @@ router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+async def get_default_admin_id(db: AsyncSession) -> Optional[int]:
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.key == "default_admin_id")
+    )
+    config = result.scalar_one_or_none()
+
+    if config and config.value.isdigit():
+        return int(config.value)
+
+    return None
+
+
 @router.get("/config", response_model=SystemConfigResponse)
 async def get_system_config(
     current_admin: User = Depends(get_current_admin_user),
@@ -203,8 +215,10 @@ async def update_user(
             detail="User not found"
         )
 
+    protected_admin_id = await get_default_admin_id(db)
+
     # 不允许修改默认管理员的管理员状态
-    if user.username == "admin" and user_data.is_admin is not None:
+    if protected_admin_id and user.id == protected_admin_id and user_data.is_admin is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot modify default admin user's admin status"
@@ -240,8 +254,10 @@ async def delete_user(
             detail="User not found"
         )
 
+    protected_admin_id = await get_default_admin_id(db)
+
     # 不允许删除默认管理员
-    if user.username == "admin":
+    if protected_admin_id and user.id == protected_admin_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete default admin user"

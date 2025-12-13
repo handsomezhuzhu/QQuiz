@@ -1,18 +1,21 @@
 """
 Authentication Router
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
+import logging
 
 from database import get_db
 from models import User, SystemConfig
 from schemas import UserCreate, UserLogin, Token, UserResponse
 from utils import hash_password, verify_password, create_access_token
+from rate_limit import limiter
 from services.auth_service import get_current_user
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -61,7 +64,9 @@ async def register(
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     user_data: UserLogin,
     db: AsyncSession = Depends(get_db)
 ):
@@ -86,8 +91,7 @@ async def login(
         data={"sub": str(user.id)}  # JWT 'sub' must be a string
     )
 
-    print(f"✅ Login successful: user={user.username}, id={user.id}")
-    print(f"🔑 Generated token (first 50 chars): {access_token[:50]}...")
+    logger.info("Login successful", extra={"user_id": user.id})
 
     return {
         "access_token": access_token,

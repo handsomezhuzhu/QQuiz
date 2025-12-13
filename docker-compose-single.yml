@@ -11,37 +11,11 @@ services:
     container_name: qquiz
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      # 数据库配置（SQLite 默认）
+      # 数据库配置（SQLite 默认，使用持久化卷）
       - DATABASE_URL=sqlite+aiosqlite:////app/data/qquiz.db
-
-      # JWT 密钥（生产环境请修改）
-      - SECRET_KEY=your-super-secret-key-change-in-production-minimum-32-characters
-
-      # AI 提供商配置
-      - AI_PROVIDER=gemini
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_BASE_URL=${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash-exp}
-
-      # OpenAI 配置（可选）
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
-
-      # Anthropic 配置（可选）
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-haiku-20240307}
-
-      # Qwen 配置（可选）
-      - QWEN_API_KEY=${QWEN_API_KEY:-}
-      - QWEN_BASE_URL=${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
-      - QWEN_MODEL=${QWEN_MODEL:-qwen-plus}
-
-      # 系统配置
-      - ALLOW_REGISTRATION=true
-      - MAX_UPLOAD_SIZE_MB=10
-      - MAX_DAILY_UPLOADS=20
 
     volumes:
       # 持久化数据卷

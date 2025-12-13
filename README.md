@@ -55,11 +55,13 @@ docker run -d \
 从源码构建，一个容器包含前后端和 SQLite 数据库：
 
 ```bash
-# 1. 配置环境变量
+# 1. 配置环境变量（必须提供强密码和密钥）
 cp .env.example .env
-# 编辑 .env，填入你的 API Key
+# 编辑 .env，填入至少 32 位的 SECRET_KEY 和至少 12 位的 ADMIN_PASSWORD（建议使用随机生成值）
 
-# 2. 启动服务
+# 2. 启动服务（未设置强密码/密钥会直接报错终止）
+SECRET_KEY=$(openssl rand -base64 48) \
+ADMIN_PASSWORD=$(openssl rand -base64 16) \
 docker-compose -f docker-compose-single.yml up -d
 
 # 3. 访问应用: http://localhost:8000
@@ -71,7 +73,9 @@ docker-compose -f docker-compose-single.yml up -d
 前后端分离 + MySQL：
 
 ```bash
-# 启动服务
+# 启动服务（建议直接在命令行生成强密钥和管理员密码）
+SECRET_KEY=$(openssl rand -base64 48) \
+ADMIN_PASSWORD=$(openssl rand -base64 16) \
 docker-compose up -d
 
 # 前端: http://localhost:3000
@@ -84,14 +88,6 @@ docker-compose up -d
 - Python 3.11+
 - Node.js 18+
 - MySQL 8.0+ 或 Docker (用于运行 MySQL)
-
-**Windows 用户:**
-```bash
-# 双击运行以下脚本之一：
-scripts\fix_and_start.bat          # 推荐：自动修复并启动（支持 Docker/本地数据库）
-scripts\start_with_docker_db.bat   # 使用 Docker 数据库启动
-scripts\setup.bat                   # 仅配置环境变量
-```
 
 **Linux/macOS 用户:**
 ```bash
@@ -109,23 +105,6 @@ chmod +x scripts/run_local.sh
 ```
 
 **MySQL 安装指南：** 详见 [docs/MYSQL_SETUP.md](docs/MYSQL_SETUP.md)
-
-### Docker 构建加速（中国用户）
-
-如果你在中国大陆，Docker 构建速度可能较慢。我们提供了使用国内镜像的可选配置：
-
-**详细指南：** 参见 [docs/CHINA_MIRROR_GUIDE.md](docs/CHINA_MIRROR_GUIDE.md)
-
-**快速使用：**
-```bash
-# 后端使用中国镜像构建
-docker build -f backend/Dockerfile.china -t qquiz-backend ./backend
-
-# 前端使用中国镜像构建
-docker build -f frontend/Dockerfile.china -t qquiz-frontend ./frontend
-```
-
-构建速度可提升 3-5 倍 ⚡
 
 ## GitHub Actions 自动构建设置
 
@@ -161,9 +140,9 @@ docker pull ghcr.io/handsomezhuzhu/qquiz:latest
 
 **管理员账户:**
 - 用户名: `admin`
-- 密码: `admin123`
+- 密码: 取自环境变量 `ADMIN_PASSWORD`（必须至少 12 位，建议随机生成）
 
-⚠️ **重要**: 首次登录后请立即修改密码！
+⚠️ **重要**: 在部署前就必须设置强管理员密码；如果需要轮换密码，请更新环境变量后重启服务。
 
 ## 项目结构
 
@@ -186,16 +165,9 @@ QQuiz/
 │   ├── package.json      # Node 依赖
 │   └── vite.config.js    # Vite 配置
 ├── scripts/              # 部署和启动脚本
-│   ├── fix_and_start.bat           # Windows 快速启动（推荐）
-│   ├── start_with_docker_db.bat    # Docker 数据库启动
-│   ├── setup.bat                    # 环境配置脚本
-│   ├── run_local.sh                 # Linux/macOS 启动脚本
-│   └── [其他辅助脚本...]
+│   └── run_local.sh                 # Linux/macOS 启动脚本
 ├── docs/                 # 文档目录
-│   ├── AI_CONFIGURATION.md         # AI 提供商配置指南（重要）
 │   ├── MYSQL_SETUP.md              # MySQL 安装配置指南
-│   ├── CHINA_MIRROR_GUIDE.md       # 中国镜像加速指南
-│   ├── WINDOWS_DEPLOYMENT.md       # Windows 部署详细指南
 │   └── PROJECT_STRUCTURE.md        # 项目架构详解
 ├── test_data/            # 测试数据
 │   └── sample_questions.txt        # 示例题目
@@ -233,7 +205,8 @@ QQuiz/
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `DATABASE_URL` | 数据库连接字符串 | - |
-| `SECRET_KEY` | JWT 密钥 | - |
+| `SECRET_KEY` | JWT 密钥（必须至少 32 位随机字符串） | - |
+| `ADMIN_PASSWORD` | 默认管理员密码（必须至少 12 位，建议随机生成） | - |
 | `AI_PROVIDER` | AI 提供商 (gemini/openai/anthropic/qwen) | gemini |
 | `GEMINI_API_KEY` | Google Gemini API 密钥 | - |
 | `GEMINI_BASE_URL` | Gemini API 地址（可选，支持代理） | https://generativelanguage.googleapis.com |

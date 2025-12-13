@@ -25,6 +25,8 @@ services:
     container_name: qquiz_backend
     environment:
       - DATABASE_URL=mysql+aiomysql://qquiz:qquiz_password@mysql:3306/qquiz_db
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY to a random string of at least 32 characters}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD to a strong password of at least 12 characters}
     env_file:
       - .env
     volumes:

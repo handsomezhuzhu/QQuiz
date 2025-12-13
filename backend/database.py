@@ -86,6 +86,15 @@ async def init_default_config(db: AsyncSession):
         "ai_provider": os.getenv("AI_PROVIDER", "openai"),
     }
 
+    # Validate admin credentials
+    admin_username = os.getenv("ADMIN_USERNAME", "admin")
+    if not admin_username or len(admin_username) < 3:
+        raise ValueError("ADMIN_USERNAME must be at least 3 characters long")
+
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    if not admin_password or len(admin_password) < 12:
+        raise ValueError("ADMIN_PASSWORD must be set and at least 12 characters long")
+
     for key, value in default_configs.items():
         result = await db.execute(select(SystemConfig).where(SystemConfig.key == key))
         existing = result.scalar_one_or_none()
@@ -95,19 +104,40 @@ async def init_default_config(db: AsyncSession):
             db.add(config)
             print(f"✅ Created default config: {key} = {value}")
 
-    # Create default admin user if not exists
-    result = await db.execute(select(User).where(User.username == "admin"))
+    # Create or update default admin user
+    result = await db.execute(select(User).where(User.username == admin_username))
     admin = result.scalar_one_or_none()
+
+    default_admin_id = admin.id if admin else None
 
     if not admin:
         admin_user = User(
-            username="admin",
-            hashed_password=pwd_context.hash("admin123"),  # Change this password!
+            username=admin_username,
+            hashed_password=pwd_context.hash(admin_password),
             is_admin=True
         )
         db.add(admin_user)
-        print("✅ Created default admin user (username: admin, password: admin123)")
-        print("⚠️  IMPORTANT: Please change the admin password immediately!")
+        await db.commit()
+        await db.refresh(admin_user)
+        default_admin_id = admin_user.id
+        print(f"✅ Created default admin user (username: {admin_username})")
+    else:
+        # Update password if it has changed (verify current password doesn't match)
+        if not pwd_context.verify(admin_password, admin.hashed_password):
+            admin.hashed_password = pwd_context.hash(admin_password)
+            print(f"🔄 Updated default admin password (username: {admin_username})")
+        await db.commit()
+
+    if default_admin_id is not None:
+        result = await db.execute(
+            select(SystemConfig).where(SystemConfig.key == "default_admin_id")
+        )
+        default_admin_config = result.scalar_one_or_none()
+
+        if not default_admin_config:
+            db.add(SystemConfig(key="default_admin_id", value=str(default_admin_id)))
+        elif default_admin_config.value != str(default_admin_id):
+            default_admin_config.value = str(default_admin_id)
 
     await db.commit()
 
