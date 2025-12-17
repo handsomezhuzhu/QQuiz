@@ -3,7 +3,6 @@
  */
 import React, { useState, useEffect } from 'react'
 import { questionAPI } from '../api/client'
-import Layout from '../components/Layout'
 import Pagination from '../components/Pagination'
 import { FileText, Loader, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -44,16 +43,14 @@ export const QuestionBank = () => {
 
     if (loading && questions.length === 0) {
         return (
-            <Layout>
-                <div className="flex items-center justify-center h-screen">
-                    <Loader className="h-8 w-8 animate-spin text-primary-600" />
-                </div>
-            </Layout>
+            <div className="flex items-center justify-center h-screen">
+                <Loader className="h-8 w-8 animate-spin text-primary-600" />
+            </div>
         )
     }
 
     return (
-        <Layout>
+        <>
             <div className="p-4 md:p-8">
                 {/* Header */}
                 <div className="mb-6">
@@ -152,7 +149,7 @@ export const QuestionBank = () => {
                     }}
                 />
             </div>
-        </Layout>
+        </>
     )
 }
 

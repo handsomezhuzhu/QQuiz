@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { examAPI, questionAPI } from '../api/client'
-import Layout from '../components/Layout'
 import ParsingProgress from '../components/ParsingProgress'
 import {
   ArrowLeft, Upload, Play, Loader, FileText, AlertCircle, RefreshCw, ArrowRight
@@ -155,22 +154,18 @@ export const ExamDetail = () => {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <Loader className="h-8 w-8 animate-spin text-primary-600" />
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center h-screen">
+        <Loader className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
     )
   }
 
   if (!exam) {
     return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center h-screen">
-          <AlertCircle className="h-16 w-16 text-gray-300 mb-4" />
-          <p className="text-gray-600">题库不存在</p>
-        </div>
-      </Layout>
+      <div className="flex flex-col items-center justify-center h-screen">
+        <AlertCircle className="h-16 w-16 text-gray-300 mb-4" />
+        <p className="text-gray-600">题库不存在</p>
+      </div>
     )
   }
 
@@ -180,7 +175,7 @@ export const ExamDetail = () => {
   const quizProgress = calculateProgress(exam.current_index, exam.total_questions)
 
   return (
-    <Layout>
+    <>
       <div className="p-4 md:p-8">
         {/* Back Button */}
         <button
@@ -374,7 +369,7 @@ export const ExamDetail = () => {
           </div>
         </div>
       )}
-    </Layout>
+    </>
   )
 }
 

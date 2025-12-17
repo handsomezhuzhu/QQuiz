@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { mistakeAPI, questionAPI } from '../api/client'
-import Layout from '../components/Layout'
 import {
     ArrowLeft, ArrowRight, Check, X, Loader, Trash2, AlertCircle
 } from 'lucide-react'
@@ -13,16 +12,17 @@ import { getQuestionTypeText } from '../utils/helpers'
 
 export const MistakePlayer = () => {
     const navigate = useNavigate()
-
     const location = useLocation()
     const searchParams = new URLSearchParams(location.search)
     const mode = searchParams.get('mode') || 'sequential'
+
+    console.log('MistakePlayer mounted, mode:', mode)
 
     const [loading, setLoading] = useState(true)
     const [mistake, setMistake] = useState(null)
     const [currentIndex, setCurrentIndex] = useState(0)
     const [total, setTotal] = useState(0)
-    const [randomIds, setRandomIds] = useState([]) // For random mode
+    const [randomMistakes, setRandomMistakes] = useState([]) // Store full mistake objects
 
     const [submitting, setSubmitting] = useState(false)
     const [userAnswer, setUserAnswer] = useState('')
@@ -31,7 +31,7 @@ export const MistakePlayer = () => {
 
     useEffect(() => {
         loadMistake()
-    }, [currentIndex])
+    }, [currentIndex, mode])
 
     const loadMistake = async () => {
         try {
@@ -41,49 +41,26 @@ export const MistakePlayer = () => {
 
             if (mode === 'random') {
                 // Random Mode Logic
-                if (randomIds.length === 0) {
-                    // First load: fetch all mistakes to get IDs
-                    // Note: fetching up to 1000 for now. For larger datasets, we need a specific API to get just IDs.
+                if (randomMistakes.length === 0) {
+                    // First load: fetch all mistakes
                     const response = await mistakeAPI.getList(0, 1000)
                     const allMistakes = response.data.mistakes
                     setTotal(response.data.total)
 
                     if (allMistakes.length > 0) {
-                        // Shuffle IDs
-                        const ids = allMistakes.map(m => m.id)
-                        for (let i = ids.length - 1; i > 0; i--) {
+                        // Shuffle mistakes
+                        const shuffled = [...allMistakes]
+                        for (let i = shuffled.length - 1; i > 0; i--) {
                             const j = Math.floor(Math.random() * (i + 1));
-                            [ids[i], ids[j]] = [ids[j], ids[i]];
+                            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
                         }
-                        setRandomIds(ids)
-
-                        // Get first mistake from shuffled list
-                        // We need to find the full mistake object from our initial fetch
-                        // (Since we fetched all, we have it)
-                        const firstId = ids[0]
-                        currentMistake = allMistakes.find(m => m.id === firstId)
+                        setRandomMistakes(shuffled)
+                        currentMistake = shuffled[0]
                     }
                 } else {
-                    // Subsequent loads: use stored random IDs
-                    // We need to fetch the specific mistake details if we don't have them cached
-                    // But wait, mistakeAPI.getList is pagination based. 
-                    // We can't easily "get mistake by ID" using getList without knowing its index.
-                    // However, we have `mistakeAPI.remove` but not `getById`.
-                    // Actually, the `mistake` object contains the `question`.
-                    // If we only have the ID, we might need an API to get mistake by ID.
-                    // But since we fetched ALL mistakes initially (up to 1000), we can just store the whole objects in randomIds?
-                    // No, that's too much memory if many.
-
-                    // Let's assume for now we fetched all and stored them in a "cache" or just store the list of objects if < 1000.
-                    // For simplicity and performance on small datasets:
-                    // If randomIds contains objects, use them.
-
-                    // REVISION: Let's just store the full shuffled list of mistakes in state if < 1000.
-                    // If > 1000, this approach needs backend support for "random fetch".
-                    // Given the user requirements, let's assume < 1000 for now.
-
-                    if (currentIndex < randomIds.length) {
-                        currentMistake = randomIds[currentIndex]
+                    // Subsequent loads: use stored mistakes
+                    if (currentIndex < randomMistakes.length) {
+                        currentMistake = randomMistakes[currentIndex]
                     }
                 }
             } else {
@@ -101,15 +78,10 @@ export const MistakePlayer = () => {
                     currentMistake.question.options = ['A. 正确', 'B. 错误']
                 }
                 setMistake(currentMistake)
+                console.log('Mistake loaded:', currentMistake)
                 setResult(null)
                 setUserAnswer('')
                 setMultipleAnswers([])
-
-                // If we just initialized random mode, update state
-                if (mode === 'random' && randomIds.length === 0) {
-                    // This part is tricky because state updates are async.
-                    // We handled the initialization above.
-                }
             } else {
                 setMistake(null)
             }
@@ -118,6 +90,7 @@ export const MistakePlayer = () => {
             toast.error('加载错题失败')
         } finally {
             setLoading(false)
+            console.log('Loading finished')
         }
     }
 
@@ -176,8 +149,8 @@ export const MistakePlayer = () => {
             // If we remove the last item, we need to go back one step or show empty
             if (mode === 'random') {
                 // Remove from random list
-                const newRandomList = randomIds.filter(m => m.id !== mistake.id)
-                setRandomIds(newRandomList)
+                const newRandomList = randomMistakes.filter(m => m.id !== mistake.id)
+                setRandomMistakes(newRandomList)
                 setTotal(newRandomList.length)
 
                 if (currentIndex >= newRandomList.length && newRandomList.length > 0) {
@@ -219,35 +192,46 @@ export const MistakePlayer = () => {
 
     if (loading && !mistake) {
         return (
-            <Layout>
-                <div className="flex items-center justify-center h-screen">
-                    <Loader className="h-8 w-8 animate-spin text-primary-600" />
-                </div>
-            </Layout>
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <Loader className="h-8 w-8 animate-spin text-primary-600" />
+            </div>
         )
     }
 
     if (!mistake) {
         return (
-            <Layout>
-                <div className="flex flex-col items-center justify-center h-screen">
-                    <AlertCircle className="h-16 w-16 text-gray-300 mb-4" />
-                    <p className="text-gray-600">错题本为空</p>
-                    <button
-                        onClick={() => navigate('/mistakes')}
-                        className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
-                    >
-                        返回错题列表
-                    </button>
-                </div>
-            </Layout>
+            <div className="flex flex-col items-center justify-center min-h-[50vh]">
+                <AlertCircle className="h-16 w-16 text-gray-300 mb-4" />
+                <p className="text-gray-600">错题本为空</p>
+                <button
+                    onClick={() => navigate('/mistakes')}
+                    className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
+                >
+                    返回错题列表
+                </button>
+            </div>
         )
     }
 
     const question = mistake.question
 
+    if (!question) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[50vh]">
+                <AlertCircle className="h-16 w-16 text-red-300 mb-4" />
+                <p className="text-gray-600">题目数据缺失</p>
+                <button
+                    onClick={() => navigate('/mistakes')}
+                    className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
+                >
+                    返回错题列表
+                </button>
+            </div>
+        )
+    }
+
     return (
-        <Layout>
+        <>
             <div className="max-w-4xl mx-auto p-4 md:p-8">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
@@ -421,7 +405,7 @@ export const MistakePlayer = () => {
                     </div>
                 )}
             </div>
-        </Layout>
+        </>
     )
 }
 

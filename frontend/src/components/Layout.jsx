@@ -2,7 +2,7 @@
  * Main Layout Component with Navigation
  */
 import React, { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   BookOpen,
@@ -12,10 +12,11 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  Shield
 } from 'lucide-react'
 
-export const Layout = ({ children }) => {
+export const Layout = () => {
   const { user, logout, isAdmin } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -33,6 +34,7 @@ export const Layout = ({ children }) => {
   ]
 
   if (isAdmin) {
+    navigation.push({ name: '管理面板', href: '/admin', icon: Shield })
     navigation.push({ name: '系统设置', href: '/admin/settings', icon: Settings })
   }
 
@@ -63,11 +65,10 @@ export const Layout = ({ children }) => {
                 key={item.name}
                 to={item.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive(item.href)
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive(item.href)
                     ? 'bg-primary-50 text-primary-600'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <item.icon className="h-5 w-5" />
                 <span>{item.name}</span>
@@ -105,11 +106,10 @@ export const Layout = ({ children }) => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive(item.href)
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive(item.href)
                       ? 'bg-primary-50 text-primary-600'
                       : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <item.icon className="h-5 w-5" />
                   <span>{item.name}</span>
@@ -132,7 +132,7 @@ export const Layout = ({ children }) => {
 
         {/* Main Content */}
         <div className="flex-1 lg:pl-64">
-          {children}
+          <Outlet />
         </div>
       </div>
     </div>

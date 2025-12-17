@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { examAPI } from '../api/client'
-import Layout from '../components/Layout'
 import {
   Plus, FolderOpen, Loader, AlertCircle, Trash2, Upload
 } from 'lucide-react'
@@ -131,16 +130,14 @@ export const ExamList = () => {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <Loader className="h-8 w-8 animate-spin text-primary-600" />
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center h-screen">
+        <Loader className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
     )
   }
 
   return (
-    <Layout>
+    <>
       <div className="p-4 md:p-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
@@ -150,10 +147,11 @@ export const ExamList = () => {
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="mt-4 md:mt-0 bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center gap-2 justify-center"
+            className="mt-4 md:mt-0 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center gap-2 justify-center text-sm md:text-base"
           >
-            <Plus className="h-5 w-5" />
-            创建题库
+            <Plus className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="hidden md:inline">创建题库</span>
+            <span className="md:hidden">新建</span>
           </button>
         </div>
 
@@ -337,7 +335,7 @@ export const ExamList = () => {
           </div>
         </div>
       )}
-    </Layout>
+    </>
   )
 }
 

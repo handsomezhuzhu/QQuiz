@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { examAPI, mistakeAPI } from '../api/client'
 import { useAuth } from '../context/AuthContext'
-import Layout from '../components/Layout'
+
 import {
   FolderOpen, XCircle, TrendingUp, BookOpen, ArrowRight, Settings, Shield
 } from 'lucide-react'
@@ -58,7 +58,7 @@ export const Dashboard = () => {
   }
 
   return (
-    <Layout>
+    <>
       <div className="p-4 md:p-8">
         {/* Welcome */}
         <div className="mb-8">
@@ -179,35 +179,8 @@ export const Dashboard = () => {
           )}
         </div>
 
-        {/* Admin Quick Access */}
-        {isAdmin && (
-          <div className="mt-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl shadow-sm p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold mb-1">管理员功能</h3>
-                <p className="text-sm text-primary-100">用户管理、系统统计、配置设置</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate('/admin')}
-                  className="bg-white text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-primary-50 transition-colors flex items-center gap-2"
-                >
-                  <Shield className="h-5 w-5" />
-                  管理面板
-                </button>
-                <button
-                  onClick={() => navigate('/admin/settings')}
-                  className="bg-white/90 text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-white transition-colors flex items-center gap-2"
-                >
-                  <Settings className="h-5 w-5" />
-                  系统设置
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-    </Layout>
+    </>
   )
 }
 

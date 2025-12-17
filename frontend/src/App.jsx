@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import Layout from './components/Layout'
 
 // Auth Pages
 import Login from './pages/Login'
@@ -56,88 +57,34 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
-            {/* Protected Routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
+            {/* Protected Routes with Layout */}
+            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/exams" element={<ExamList />} />
+              <Route path="/exams/:examId" element={<ExamDetail />} />
+              <Route path="/quiz/:examId" element={<QuizPlayer />} />
+              <Route path="/mistakes" element={<MistakeList />} />
+              <Route path="/mistake-quiz" element={<MistakePlayer />} />
+              <Route path="/questions" element={<QuestionBank />} />
 
-            <Route
-              path="/exams"
-              element={
-                <ProtectedRoute>
-                  <ExamList />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/exams/:examId"
-              element={
-                <ProtectedRoute>
-                  <ExamDetail />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/quiz/:examId"
-              element={
-                <ProtectedRoute>
-                  <QuizPlayer />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/mistakes"
-              element={
-                <ProtectedRoute>
-                  <MistakeList />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/mistake-quiz"
-              element={
-                <ProtectedRoute>
-                  <MistakePlayer />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/questions"
-              element={
-                <ProtectedRoute>
-                  <QuestionBank />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Admin Only Routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminPanel />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/admin/settings"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminSettings />
-                </ProtectedRoute>
-              }
-            />
+              {/* Admin Only Routes */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminPanel />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/settings"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminSettings />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
 
             {/* Default Route */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

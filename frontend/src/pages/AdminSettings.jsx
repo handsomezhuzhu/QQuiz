@@ -117,31 +117,14 @@ export const AdminSettings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="返回"
-              >
-                <ArrowLeft className="h-6 w-6 text-gray-600" />
-              </button>
-              <Settings className="h-8 w-8 text-primary-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">系统设置</h1>
-                <p className="text-gray-600">管理员：{user?.username}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="p-4 md:p-8">
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">系统设置</h1>
+        <p className="text-gray-600 mt-1">配置系统参数与 AI 接口</p>
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <div className="space-y-6">
         {/* Basic Settings */}
         <div className="bg-white rounded-xl shadow-md p-6 space-y-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">基础设置</h2>

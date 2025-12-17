@@ -4,9 +4,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { mistakeAPI } from '../api/client'
-import Layout from '../components/Layout'
 import Pagination from '../components/Pagination'
-import { XCircle, Loader, Trash2, BookOpen, Play } from 'lucide-react'
+import { XCircle, Loader, Trash2, BookOpen, Play, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getQuestionTypeText, formatRelativeTime } from '../utils/helpers'
 
@@ -62,16 +61,14 @@ export const MistakeList = () => {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <Loader className="h-8 w-8 animate-spin text-primary-600" />
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center h-screen">
+        <Loader className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
     )
   }
 
   return (
-    <Layout>
+    <>
       <div className="p-4 md:p-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
@@ -83,10 +80,11 @@ export const MistakeList = () => {
           {mistakes.length > 0 && (
             <button
               onClick={() => setShowModeModal(true)}
-              className="bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
+              className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
             >
-              <Play className="h-5 w-5" />
-              开始刷错题
+              <Play className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden md:inline">开始刷错题</span>
+              <span className="md:hidden">刷题</span>
             </button>
           )}
         </div>
@@ -237,7 +235,7 @@ export const MistakeList = () => {
           </div>
         </div>
       )}
-    </Layout>
+    </>
   )
 }
 

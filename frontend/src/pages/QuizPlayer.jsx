@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { examAPI, questionAPI, mistakeAPI } from '../api/client'
-import Layout from '../components/Layout'
 import {
   ArrowLeft, ArrowRight, Check, X, Loader, BookmarkPlus, BookmarkX, AlertCircle
 } from 'lucide-react'
@@ -159,27 +158,23 @@ export const QuizPlayer = () => {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <Loader className="h-8 w-8 animate-spin text-primary-600" />
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center h-screen">
+        <Loader className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
     )
   }
 
   if (!question) {
     return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center h-screen">
-          <AlertCircle className="h-16 w-16 text-gray-300 mb-4" />
-          <p className="text-gray-600">没有更多题目了</p>
-        </div>
-      </Layout>
+      <div className="flex flex-col items-center justify-center h-screen">
+        <AlertCircle className="h-16 w-16 text-gray-300 mb-4" />
+        <p className="text-gray-600">没有更多题目了</p>
+      </div>
     )
   }
 
   return (
-    <Layout>
+    <>
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -212,8 +207,8 @@ export const QuizPlayer = () => {
             <button
               onClick={handleToggleMistake}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${inMistakeBook
-                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
             >
               {inMistakeBook ? (
@@ -260,8 +255,8 @@ export const QuizPlayer = () => {
                     }}
                     disabled={!!result}
                     className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected
-                        ? 'border-primary-500 bg-primary-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-gray-200 hover:border-gray-300'
                       } ${result ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
                   >
                     <span className="text-gray-900">{option}</span>
@@ -367,7 +362,7 @@ export const QuizPlayer = () => {
           </div>
         )}
       </div>
-    </Layout>
+    </>
   )
 }
 

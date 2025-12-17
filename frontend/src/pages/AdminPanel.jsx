@@ -106,42 +106,21 @@ export const AdminPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <ArrowLeft className="h-6 w-6 text-gray-600" />
-              </button>
-              <Shield className="h-8 w-8 text-primary-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">管理员面板</h1>
-                <p className="text-gray-600">{user?.username}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate('/admin/settings')}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2"
-            >
-              <Settings className="h-5 w-5" />
-              系统设置
-            </button>
-          </div>
-        </div>
+    <div className="p-4 md:p-8">
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">管理员面板</h1>
+        <p className="text-gray-600 mt-1">系统统计与用户管理</p>
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="mb-6">
         <div className="flex gap-4 border-b border-gray-200 mb-6">
           <button
             onClick={() => setActiveTab('stats')}
-            className={`pb-3 px-4 font-medium border-b-2 transition-colors ${
-              activeTab === 'stats'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
+            className={`pb-3 px-4 font-medium border-b-2 transition-colors ${activeTab === 'stats'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
           >
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
@@ -150,11 +129,10 @@ export const AdminPanel = () => {
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`pb-3 px-4 font-medium border-b-2 transition-colors ${
-              activeTab === 'users'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
+            className={`pb-3 px-4 font-medium border-b-2 transition-colors ${activeTab === 'users'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
           >
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -265,13 +243,14 @@ export const AdminPanel = () => {
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2"
                 >
                   <Plus className="h-5 w-5" />
-                  创建用户
+                  <span className="hidden md:inline">创建用户</span>
+                  <span className="md:hidden">新建</span>
                 </button>
               </div>
             </div>
 
             {/* Users Table */}
-            <div className="bg-white rounded-xl shadow overflow-hidden">
+            <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
