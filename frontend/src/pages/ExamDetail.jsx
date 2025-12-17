@@ -7,7 +7,7 @@ import { examAPI, questionAPI } from '../api/client'
 import Layout from '../components/Layout'
 import ParsingProgress from '../components/ParsingProgress'
 import {
-  ArrowLeft, Upload, Play, Loader, FileText, AlertCircle, RefreshCw
+  ArrowLeft, Upload, Play, Loader, FileText, AlertCircle, RefreshCw, ArrowRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -24,7 +24,6 @@ export const ExamDetail = () => {
   const navigate = useNavigate()
 
   const [exam, setExam] = useState(null)
-  const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -47,13 +46,8 @@ export const ExamDetail = () => {
 
   const loadExamDetail = async () => {
     try {
-      const [examRes, questionsRes] = await Promise.all([
-        examAPI.getDetail(examId),
-        questionAPI.getExamQuestions(examId, 0, 10) // Load first 10 for preview
-      ])
-
+      const examRes = await examAPI.getDetail(examId)
       setExam(examRes.data)
-      setQuestions(questionsRes.data.questions)
 
       // Connect to SSE if exam is processing
       if (examRes.data.status === 'processing') {
@@ -263,7 +257,7 @@ export const ExamDetail = () => {
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-1">完成度</p>
-              <p className="text-2xl font-bold text-green-600">{progress}%</p>
+              <p className="text-2xl font-bold text-green-600">{isProcessing ? progress : quizProgress}%</p>
             </div>
           </div>
 
@@ -301,47 +295,23 @@ export const ExamDetail = () => {
           </div>
         )}
 
-        {/* Questions Preview */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            题目预览 {questions.length > 0 && `(前 ${questions.length} 题)`}
-          </h2>
-
-          {questions.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">
-                {isProcessing ? '正在解析文档，请稍候...' : '暂无题目'}
-              </p>
+        {/* View All Questions Link */}
+        <div
+          className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow flex items-center justify-between group"
+          onClick={() => navigate(`/questions?examId=${examId}`)}
+        >
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-100 p-3 rounded-full text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <FileText className="h-6 w-6" />
             </div>
-          ) : (
-            <div className="space-y-4">
-              {questions.map((q, index) => (
-                <div key={q.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center font-medium">
-                      {index + 1}
-                    </span>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
-                          {getQuestionTypeText(q.type)}
-                        </span>
-                      </div>
-                      <p className="text-gray-900">{q.content}</p>
-                      {q.options && q.options.length > 0 && (
-                        <ul className="mt-2 space-y-1 text-sm text-gray-600">
-                          {q.options.map((opt, i) => (
-                            <li key={i}>{opt}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">查看题库所有题目</h2>
+              <p className="text-gray-600">浏览、搜索和查看该题库中的所有题目详情</p>
             </div>
-          )}
+          </div>
+          <div className="bg-gray-100 p-2 rounded-full text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+            <ArrowRight className="h-5 w-5" />
+          </div>
         </div>
       </div>
 

@@ -52,6 +52,10 @@ export const QuizPlayer = () => {
   const loadCurrentQuestion = async () => {
     try {
       const response = await questionAPI.getCurrentQuestion(examId)
+      // For judge questions, ensure options exist
+      if (response.data.type === 'judge' && (!response.data.options || response.data.options.length === 0)) {
+        response.data.options = ['A. 正确', 'B. 错误']
+      }
       setQuestion(response.data)
       setResult(null)
       setUserAnswer('')
@@ -207,11 +211,10 @@ export const QuizPlayer = () => {
 
             <button
               onClick={handleToggleMistake}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                inMistakeBook
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${inMistakeBook
                   ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {inMistakeBook ? (
                 <>
@@ -256,11 +259,10 @@ export const QuizPlayer = () => {
                       }
                     }}
                     disabled={!!result}
-                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                      isSelected
+                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected
                         ? 'border-primary-500 bg-primary-50'
                         : 'border-gray-200 hover:border-gray-300'
-                    } ${result ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+                      } ${result ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
                   >
                     <span className="text-gray-900">{option}</span>
                   </button>
@@ -282,31 +284,7 @@ export const QuizPlayer = () => {
             </div>
           )}
 
-          {/* Judge Input */}
-          {question.type === 'judge' && !result && (
-            <div className="flex gap-4 mb-6">
-              <button
-                onClick={() => setUserAnswer('A')}
-                className={`flex-1 py-3 rounded-lg border-2 transition-all ${
-                  userAnswer === 'A'
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                正确
-              </button>
-              <button
-                onClick={() => setUserAnswer('B')}
-                className={`flex-1 py-3 rounded-lg border-2 transition-all ${
-                  userAnswer === 'B'
-                    ? 'border-red-500 bg-red-50 text-red-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                错误
-              </button>
-            </div>
-          )}
+
 
           {/* Submit Button */}
           {!result && (
@@ -332,9 +310,8 @@ export const QuizPlayer = () => {
 
         {/* Result */}
         {result && (
-          <div className={`rounded-xl p-6 mb-6 ${
-            result.correct ? 'bg-green-50 border-2 border-green-200' : 'bg-red-50 border-2 border-red-200'
-          }`}>
+          <div className={`rounded-xl p-6 mb-6 ${result.correct ? 'bg-green-50 border-2 border-green-200' : 'bg-red-50 border-2 border-red-200'
+            }`}>
             <div className="flex items-start gap-3 mb-4">
               {result.correct ? (
                 <Check className="h-6 w-6 text-green-600 mt-0.5" />

@@ -73,10 +73,11 @@ export const authAPI = {
 // ============ Exam APIs ============
 export const examAPI = {
   // Create exam with first document
-  create: (title, file) => {
+  create: (title, file, isRandom = false) => {
     const formData = new FormData()
     formData.append('title', title)
     formData.append('file', file)
+    formData.append('is_random', isRandom)
     return api.post('/exams/create', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
@@ -110,6 +111,13 @@ export const examAPI = {
 
 // ============ Question APIs ============
 export const questionAPI = {
+  // Get all questions (Question Bank)
+  getAll: (skip = 0, limit = 50, examId = null) => {
+    const params = { skip, limit }
+    if (examId) params.exam_id = examId
+    return api.get('/questions/', { params })
+  },
+
   // Get all questions for an exam
   getExamQuestions: (examId, skip = 0, limit = 50) =>
     api.get(`/questions/exam/${examId}/questions`, { params: { skip, limit } }),

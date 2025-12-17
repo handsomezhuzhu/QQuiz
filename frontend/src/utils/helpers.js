@@ -74,7 +74,7 @@ export const getQuestionTypeText = (type) => {
   const texts = {
     single: '单选题',
     multiple: '多选题',
-    judge: '判断题',
+    judge: '判断题 (单选)',
     short: '简答题'
   }
   return texts[type] || type

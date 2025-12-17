@@ -83,14 +83,17 @@ export const Dashboard = () => {
             <p className="text-sm text-gray-600">题库总数</p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div
+            className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/questions')}
+          >
             <div className="flex items-center gap-3 mb-2">
               <div className="bg-blue-100 p-2 rounded-lg">
                 <BookOpen className="h-5 w-5 text-blue-600" />
               </div>
               <span className="text-2xl font-bold text-gray-900">{stats.totalQuestions}</span>
             </div>
-            <p className="text-sm text-gray-600">题目总数</p>
+            <p className="text-sm text-gray-600">题目总数 (点击查看)</p>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm p-6">
@@ -158,12 +161,17 @@ export const Dashboard = () => {
                   </div>
 
                   {exam.total_questions > 0 && (
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
-                      <div
-                        className="bg-primary-600 h-2 rounded-full transition-all"
-                        style={{ width: `${calculateProgress(exam.current_index, exam.total_questions)}%` }}
-                      ></div>
-                    </div>
+                    <>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                        <div
+                          className="bg-primary-600 h-2 rounded-full transition-all"
+                          style={{ width: `${calculateProgress(exam.current_index, exam.total_questions)}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-gray-500 mt-1 block text-right">
+                        {calculateProgress(exam.current_index, exam.total_questions)}%
+                      </span>
+                    </>
                   )}
                 </div>
               ))}

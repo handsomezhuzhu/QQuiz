@@ -14,6 +14,8 @@ import ExamList from './pages/ExamList'
 import ExamDetail from './pages/ExamDetail'
 import QuizPlayer from './pages/QuizPlayer'
 import MistakeList from './pages/MistakeList'
+import MistakePlayer from './pages/MistakePlayer'
+import QuestionBank from './pages/QuestionBank'
 
 // Admin Pages
 import AdminPanel from './pages/AdminPanel'
@@ -96,6 +98,24 @@ function App() {
               element={
                 <ProtectedRoute>
                   <MistakeList />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/mistake-quiz"
+              element={
+                <ProtectedRoute>
+                  <MistakePlayer />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/questions"
+              element={
+                <ProtectedRoute>
+                  <QuestionBank />
                 </ProtectedRoute>
               }
             />

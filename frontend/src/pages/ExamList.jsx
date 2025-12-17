@@ -27,7 +27,8 @@ export const ExamList = () => {
 
   const [formData, setFormData] = useState({
     title: '',
-    file: null
+    file: null,
+    isRandom: false
   })
 
   useEffect(() => {
@@ -94,10 +95,10 @@ export const ExamList = () => {
     setCreating(true)
 
     try {
-      const response = await examAPI.create(formData.title, formData.file)
+      const response = await examAPI.create(formData.title, formData.file, formData.isRandom)
       toast.success('题库创建成功，正在解析文档...')
       setShowCreateModal(false)
-      setFormData({ title: '', file: null })
+      setFormData({ title: '', file: null, isRandom: false })
 
       // 跳转到新创建的试卷详情页
       if (response.data && response.data.exam_id) {
@@ -274,13 +275,44 @@ export const ExamList = () => {
                 </p>
               </div>
 
+              {/* Order Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  题目顺序
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={!formData.isRandom}
+                      onChange={() => setFormData({ ...formData, isRandom: false })}
+                      className="text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">顺序（按文档原序）</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={formData.isRandom}
+                      onChange={() => setFormData({ ...formData, isRandom: true })}
+                      className="text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">乱序（随机打乱）</span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  注意：创建后题目顺序将固定，无法再次更改。
+                </p>
+              </div>
+
               {/* Buttons */}
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowCreateModal(false)
-                    setFormData({ title: '', file: null })
+                    setShowCreateModal(false)
+                    setFormData({ title: '', file: null, isRandom: false })
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >

@@ -11,6 +11,7 @@ import os
 import aiofiles
 import json
 import magic
+import random
 
 from database import get_db
 from models import User, Exam, Question, ExamStatus, SystemConfig
@@ -142,9 +143,8 @@ async def generate_ai_reference_answer(
     # Build prompt based on question type
     if question_type in ["single", "multiple"] and options:
         options_text = "\n".join(options)
-        prompt = f"""这是一道{
-            '单选题' if question_type == 'single' else '多选题'
-        }，但文档中没有提供答案。请根据题目内容，推理出最可能的正确答案。
+        q_type_text = '单选题' if question_type == 'single' else '多选题'
+        prompt = f"""这是一道{q_type_text}，但文档中没有提供答案。请根据题目内容，推理出最可能的正确答案。
 
 题目：{question_content}
 
@@ -205,7 +205,8 @@ async def process_questions_with_dedup(
     exam_id: int,
     questions_data: List[dict],
     db: AsyncSession,
-    llm_service=None
+    llm_service=None,
+    is_random: bool = False
 ) -> ParseResult:
     """
     Process parsed questions with fuzzy deduplication logic.
@@ -237,6 +238,11 @@ async def process_questions_with_dedup(
     existing_questions = [{"content": row[0]} for row in existing_questions_db]
 
     print(f"[Dedup] Checking against {len(existing_questions)} existing questions in database")
+
+    # Shuffle questions if random mode is enabled
+    if is_random:
+        print(f"[Dedup] Random mode enabled - shuffling {len(questions_data)} questions before saving")
+        random.shuffle(questions_data)
 
     # Insert only new questions
     for q_data in questions_data:
@@ -313,7 +319,8 @@ async def async_parse_and_save(
     exam_id: int,
     file_content: bytes,
     filename: str,
-    db_url: str
+    db_url: str,
+    is_random: bool = False
 ):
     """
     Background task to parse document and save questions with deduplication.
@@ -487,7 +494,7 @@ async def async_parse_and_save(
             ))
 
             print(f"[Exam {exam_id}] Processing questions with deduplication...")
-            parse_result = await process_questions_with_dedup(exam_id, questions_data, db, llm_service)
+            parse_result = await process_questions_with_dedup(exam_id, questions_data, db, llm_service, is_random)
 
             # Update exam status and total questions
             result = await db.execute(select(Exam).where(Exam.id == exam_id))
@@ -540,6 +547,7 @@ async def create_exam_with_upload(
     request: Request,
     background_tasks: BackgroundTasks,
     title: str = Form(...),
+    is_random: bool = Form(False),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -574,7 +582,8 @@ async def create_exam_with_upload(
         new_exam.id,
         file_content,
         file.filename,
-        os.getenv("DATABASE_URL")
+        os.getenv("DATABASE_URL"),
+        is_random
     )
 
     return ExamUploadResponse(

@@ -19,6 +19,53 @@ from services.config_service import load_llm_config
 router = APIRouter()
 
 
+@router.get("/", response_model=QuestionListResponse)
+async def get_all_questions(
+    skip: int = 0,
+    limit: int = 50,
+    exam_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all questions with optional exam filter"""
+    
+    # Build query
+    query = select(Question).order_by(Question.id)
+    count_query = select(func.count(Question.id))
+
+    # Apply exam filter if provided
+    if exam_id is not None:
+        # Verify exam ownership/access
+        result = await db.execute(
+            select(Exam).where(
+                and_(Exam.id == exam_id, Exam.user_id == current_user.id)
+            )
+        )
+        exam = result.scalar_one_or_none()
+        if not exam:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Exam not found"
+            )
+        
+        query = query.where(Question.exam_id == exam_id)
+        count_query = count_query.where(Question.exam_id == exam_id)
+    else:
+        # If no exam filter, only show questions from exams owned by user
+        query = query.join(Exam).where(Exam.user_id == current_user.id)
+        count_query = count_query.join(Exam).where(Exam.user_id == current_user.id)
+
+    # Get total count
+    result = await db.execute(count_query)
+    total = result.scalar()
+
+    # Get questions
+    result = await db.execute(query.offset(skip).limit(limit))
+    questions = result.scalars().all()
+
+    return QuestionListResponse(questions=questions, total=total)
+
+
 @router.get("/exam/{exam_id}/questions", response_model=QuestionListResponse)
 async def get_exam_questions(
     exam_id: int,
