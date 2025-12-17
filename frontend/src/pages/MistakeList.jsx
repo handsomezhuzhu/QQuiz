@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { mistakeAPI } from '../api/client'
 import Layout from '../components/Layout'
-import { XCircle, Loader, Trash2, BookOpen, Play, ChevronLeft, ChevronRight } from 'lucide-react'
+import Pagination from '../components/Pagination'
+import { XCircle, Loader, Trash2, BookOpen, Play } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getQuestionTypeText, formatRelativeTime } from '../utils/helpers'
 
@@ -185,48 +186,16 @@ export const MistakeList = () => {
             })}
 
             {/* Pagination */}
-            {total > limit && (
-              <div className="flex items-center justify-between pt-4">
-                <div className="text-sm text-gray-600">
-                  显示 {Math.min((page - 1) * limit + 1, total)} - {Math.min(page * limit, total)} 共 {total} 条
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <span className="flex items-center px-4 border border-gray-300 rounded-lg bg-white">
-                    {page}
-                  </span>
-                  <button
-                    onClick={() => setPage(p => (p * limit < total ? p + 1 : p))}
-                    disabled={page * limit >= total}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Limit Selector */}
-            <div className="flex justify-end pt-2">
-              <select
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value))
-                  setPage(1)
-                }}
-                className="text-sm border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value={10}>10 条/页</option>
-                <option value={20}>20 条/页</option>
-                <option value={50}>50 条/页</option>
-              </select>
-            </div>
+            <Pagination
+              currentPage={page}
+              totalItems={total}
+              pageSize={limit}
+              onPageChange={setPage}
+              onPageSizeChange={(newLimit) => {
+                setLimit(newLimit)
+                setPage(1)
+              }}
+            />
           </div>
         )}
       </div>
