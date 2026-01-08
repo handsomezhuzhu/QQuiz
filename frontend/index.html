@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="QQuiz - 智能刷题与题库管理平台" />
     <title>QQuiz - 智能刷题平台</title>
+    <!-- ESA 人机认证配置 -->
+    <script>
+      window.AliyunCaptchaConfig = {
+        region: "cn",
+        prefix: "%VITE_ESA_PREFIX%", 
+      };
+    </script>
+    <script src="https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js" async></script>
   </head>
   <body>
     <div id="root"></div>
