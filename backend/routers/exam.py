@@ -4,7 +4,7 @@ Exam Router - Handles exam creation, file upload, and deduplication
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, case
 from typing import List, Optional
 from datetime import datetime, timedelta
 import os
@@ -17,7 +17,7 @@ from database import get_db
 from models import User, Exam, Question, ExamStatus, SystemConfig
 from schemas import (
     ExamCreate, ExamResponse, ExamListResponse,
-    ExamUploadResponse, ParseResult, QuizProgressUpdate
+    ExamUploadResponse, ParseResult, QuizProgressUpdate, ExamSummaryResponse
 )
 from services.auth_service import get_current_user
 from services.document_parser import document_parser
@@ -682,6 +682,57 @@ async def get_user_exams(
     exams = result.scalars().all()
 
     return ExamListResponse(exams=exams, total=total)
+
+
+@router.get("/summary", response_model=ExamSummaryResponse)
+async def get_exam_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get aggregated exam statistics for current user."""
+
+    summary_query = select(
+        func.count(Exam.id),
+        func.coalesce(func.sum(Exam.total_questions), 0),
+        func.coalesce(func.sum(Exam.current_index), 0),
+        func.coalesce(
+            func.sum(
+                case((Exam.status == ExamStatus.PROCESSING, 1), else_=0)
+            ),
+            0
+        ),
+        func.coalesce(
+            func.sum(
+                case((Exam.status == ExamStatus.READY, 1), else_=0)
+            ),
+            0
+        ),
+        func.coalesce(
+            func.sum(
+                case((Exam.status == ExamStatus.FAILED, 1), else_=0)
+            ),
+            0
+        )
+    ).where(Exam.user_id == current_user.id)
+
+    result = await db.execute(summary_query)
+    (
+        total_exams,
+        total_questions,
+        completed_questions,
+        processing_exams,
+        ready_exams,
+        failed_exams
+    ) = result.one()
+
+    return ExamSummaryResponse(
+        total_exams=total_exams or 0,
+        total_questions=total_questions or 0,
+        completed_questions=completed_questions or 0,
+        processing_exams=processing_exams or 0,
+        ready_exams=ready_exams or 0,
+        failed_exams=failed_exams or 0
+    )
 
 
 @router.get("/{exam_id}", response_model=ExamResponse)

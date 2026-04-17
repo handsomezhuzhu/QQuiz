@@ -1,61 +1,47 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: qquiz_mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: qquiz_db
-      MYSQL_USER: qquiz
-      MYSQL_PASSWORD: qquiz_password
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "qquiz", "-pqquiz_password"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: qquiz_backend
     environment:
-      - DATABASE_URL=mysql+aiomysql://qquiz:qquiz_password@mysql:3306/qquiz_db
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/qquiz.db
       - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY to a random string of at least 32 characters}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD to a strong password of at least 12 characters}
+      - UPLOAD_DIR=/app/uploads
     env_file:
       - .env
     volumes:
-      - ./backend:/app
+      - sqlite_data:/app/data
       - upload_files:/app/uploads
     ports:
       - "8000:8000"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5); sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
   frontend:
     build:
-      context: ./frontend
+      context: ./web
       dockerfile: Dockerfile
     container_name: qquiz_frontend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     ports:
       - "3000:3000"
     environment:
-      - VITE_API_URL=/api
-      - REACT_APP_API_URL=http://backend:8000
+      - API_BASE_URL=http://backend:8000
     depends_on:
-      - backend
-    command: npm start
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
 volumes:
-  mysql_data:
+  sqlite_data:
   upload_files:

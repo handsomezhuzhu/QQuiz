@@ -16,6 +16,7 @@ services:
     environment:
       # 数据库配置（SQLite 默认，使用持久化卷）
       - DATABASE_URL=sqlite+aiosqlite:////app/data/qquiz.db
+      - UPLOAD_DIR=/app/uploads
 
     volumes:
       # 持久化数据卷
@@ -25,7 +26,7 @@ services:
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import sys, urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5); sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -15,6 +15,25 @@ from utils import calculate_content_hash
 class LLMService:
     """Service for interacting with various LLM providers"""
 
+    @staticmethod
+    def _normalize_openai_base_url(base_url: Optional[str], default: str) -> str:
+        normalized = (base_url or default).rstrip("/")
+        if normalized.endswith("/v1"):
+            return normalized
+
+        if normalized.count("/") <= 2:
+            return f"{normalized}/v1"
+
+        return normalized
+
+    @staticmethod
+    def _openai_compat_headers() -> Dict[str, str]:
+        """
+        Some OpenAI-compatible gateways block the default OpenAI SDK user agent.
+        Use a neutral UA so requests behave like a generic HTTP client.
+        """
+        return {"User-Agent": "QQuiz/1.0"}
+
     def __init__(self, config: Optional[Dict[str, str]] = None):
         """
         Initialize LLM Service with optional configuration.
@@ -28,7 +47,10 @@ class LLMService:
 
         if self.provider == "openai":
             api_key = (config or {}).get("openai_api_key") or os.getenv("OPENAI_API_KEY")
-            base_url = (config or {}).get("openai_base_url") or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            base_url = self._normalize_openai_base_url(
+                (config or {}).get("openai_base_url") or os.getenv("OPENAI_BASE_URL"),
+                "https://api.openai.com/v1"
+            )
             self.model = (config or {}).get("openai_model") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
             if not api_key:
@@ -37,6 +59,7 @@ class LLMService:
             self.client = AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
+                default_headers=self._openai_compat_headers(),
                 timeout=120.0,  # 增加超时时间到 120 秒
                 max_retries=3   # 自动重试 3 次
             )
@@ -69,6 +92,7 @@ class LLMService:
             self.client = AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
+                default_headers=self._openai_compat_headers(),
                 timeout=120.0,  # 增加超时时间到 120 秒
                 max_retries=3   # 自动重试 3 次
             )

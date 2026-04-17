@@ -3,7 +3,7 @@
  */
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { examAPI, questionAPI } from '../api/client'
+import { examAPI, buildApiUrl, getAccessToken } from '../api/client'
 import ParsingProgress from '../components/ParsingProgress'
 import {
   ArrowLeft, Upload, Play, Loader, FileText, AlertCircle, RefreshCw, ArrowRight
@@ -51,6 +51,8 @@ export const ExamDetail = () => {
       // Connect to SSE if exam is processing
       if (examRes.data.status === 'processing') {
         connectSSE()
+      } else {
+        setProgress(null)
       }
     } catch (error) {
       console.error('Failed to load exam:', error)
@@ -68,8 +70,14 @@ export const ExamDetail = () => {
 
     console.log('[SSE] Connecting to progress stream for exam', examId)
 
-    const token = localStorage.getItem('token')
-    const url = `/api/exams/${examId}/progress?token=${encodeURIComponent(token)}`
+    const token = getAccessToken()
+
+    if (!token) {
+      console.error('[SSE] Missing access token')
+      return
+    }
+
+    const url = `${buildApiUrl(`/exams/${examId}/progress`)}?token=${encodeURIComponent(token)}`
 
     const eventSource = new EventSource(url)
     eventSourceRef.current = eventSource
@@ -173,6 +181,9 @@ export const ExamDetail = () => {
   const isReady = exam.status === 'ready'
   const isFailed = exam.status === 'failed'
   const quizProgress = calculateProgress(exam.current_index, exam.total_questions)
+  const completionProgress = isProcessing
+    ? Math.round(Number(progress?.progress ?? 0))
+    : quizProgress
 
   return (
     <>
@@ -252,17 +263,17 @@ export const ExamDetail = () => {
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-1">完成度</p>
-              <p className="text-2xl font-bold text-green-600">{isProcessing ? progress : quizProgress}%</p>
+              <p className="text-2xl font-bold text-green-600">{completionProgress}%</p>
             </div>
           </div>
 
           {/* Progress Bar */}
-          {exam.total_questions > 0 && (
+          {(isProcessing || exam.total_questions > 0) && (
             <div className="mt-6">
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-primary-600 h-3 rounded-full transition-all"
-                  style={{ width: `${quizProgress}%` }}
+                  style={{ width: `${completionProgress}%` }}
                 ></div>
               </div>
             </div>

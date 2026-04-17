@@ -9,15 +9,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     envDir, // Tell Vite to look for .env files in the project root
-    plugins: [
-      react(),
-      {
-        name: 'html-transform',
-        transformIndexHtml(html) {
-          return html.replace(/%VITE_ESA_PREFIX%/g, env.VITE_ESA_PREFIX || '')
-        },
-      }
-    ],
+    plugins: [react()],
     server: {
       host: '0.0.0.0',
       port: 3000,

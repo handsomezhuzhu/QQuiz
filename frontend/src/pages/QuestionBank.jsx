@@ -2,13 +2,15 @@
  * Question Bank Page - View all questions
  */
 import React, { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { questionAPI } from '../api/client'
 import Pagination from '../components/Pagination'
-import { FileText, Loader, Search } from 'lucide-react'
+import { FileText, Loader } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getQuestionTypeText, formatRelativeTime } from '../utils/helpers'
 
 export const QuestionBank = () => {
+    const [searchParams] = useSearchParams()
     const [questions, setQuestions] = useState([])
     const [loading, setLoading] = useState(true)
     const [expandedId, setExpandedId] = useState(null)
@@ -17,16 +19,23 @@ export const QuestionBank = () => {
     const [page, setPage] = useState(1)
     const [limit, setLimit] = useState(10)
     const [total, setTotal] = useState(0)
+    const examIdParam = searchParams.get('examId')
+    const examIdFilter = /^\d+$/.test(examIdParam || '') ? Number(examIdParam) : null
+
+    useEffect(() => {
+        setPage(1)
+        setExpandedId(null)
+    }, [examIdFilter])
 
     useEffect(() => {
         loadQuestions()
-    }, [page, limit])
+    }, [page, limit, examIdFilter])
 
     const loadQuestions = async () => {
         try {
             setLoading(true)
             const skip = (page - 1) * limit
-            const response = await questionAPI.getAll(skip, limit)
+            const response = await questionAPI.getAll(skip, limit, examIdFilter)
             setQuestions(response.data.questions)
             setTotal(response.data.total)
         } catch (error) {
@@ -41,6 +50,11 @@ export const QuestionBank = () => {
         setExpandedId(expandedId === id ? null : id)
     }
 
+    const title = examIdFilter ? `题库 ${examIdFilter} 题目` : '全站题库'
+    const subtitle = examIdFilter
+        ? `当前仅显示该题库下的 ${total} 道题目`
+        : `共 ${total} 道题目`
+
     if (loading && questions.length === 0) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -54,8 +68,8 @@ export const QuestionBank = () => {
             <div className="p-4 md:p-8">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">全站题库</h1>
-                    <p className="text-gray-600 mt-1">共 {total} 道题目</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{title}</h1>
+                    <p className="text-gray-600 mt-1">{subtitle}</p>
                 </div>
 
                 {/* List */}

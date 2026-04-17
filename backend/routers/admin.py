@@ -2,7 +2,7 @@
 Admin Router - 完备的管理员功能模块
 参考 OpenWebUI 设计
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, desc
@@ -16,7 +16,8 @@ from database import get_db, engine
 from models import User, SystemConfig, Exam, Question, UserMistake, ExamStatus
 from schemas import (
     SystemConfigUpdate, SystemConfigResponse,
-    UserResponse, UserCreate, UserUpdate, UserListResponse
+    UserResponse, UserCreate, UserUpdate, UserListResponse,
+    UserPasswordResetRequest, AdminUserSummary
 )
 from services.auth_service import get_current_admin_user
 
@@ -34,6 +35,11 @@ async def get_default_admin_id(db: AsyncSession) -> Optional[int]:
         return int(config.value)
 
     return None
+
+
+async def get_admin_count(db: AsyncSession) -> int:
+    result = await db.execute(select(func.count(User.id)).where(User.is_admin == True))
+    return result.scalar() or 0
 
 
 @router.get("/config", response_model=SystemConfigResponse)
@@ -84,6 +90,9 @@ async def update_system_config(
     update_data = config_update.dict(exclude_unset=True)
 
     for key, value in update_data.items():
+        if key.endswith("_api_key") and isinstance(value, str) and "..." in value:
+            continue
+
         result = await db.execute(
             select(SystemConfig).where(SystemConfig.key == key)
         )
@@ -108,9 +117,9 @@ async def update_system_config(
 
 @router.get("/users", response_model=UserListResponse)
 async def get_users(
-    skip: int = 0,
-    limit: int = 50,
-    search: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    search: Optional[str] = Query(None, min_length=1, max_length=50),
     current_admin: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -121,10 +130,11 @@ async def get_users(
     - search: 搜索关键词（用户名）
     """
     query = select(User)
+    normalized_search = search.strip() if search else None
 
     # 搜索过滤
-    if search:
-        query = query.where(User.username.ilike(f"%{search}%"))
+    if normalized_search:
+        query = query.where(User.username.ilike(f"%{normalized_search}%"))
 
     # 统计总数
     count_query = select(func.count()).select_from(query.subquery())
@@ -136,34 +146,41 @@ async def get_users(
     result = await db.execute(query)
     users = result.scalars().all()
 
-    # 为每个用户添加统计信息
+    user_ids = [user.id for user in users]
+    exam_count_map = {}
+    mistake_count_map = {}
+
+    if user_ids:
+        exam_count_result = await db.execute(
+            select(Exam.user_id, func.count(Exam.id))
+            .where(Exam.user_id.in_(user_ids))
+            .group_by(Exam.user_id)
+        )
+        exam_count_map = {user_id: count for user_id, count in exam_count_result.all()}
+
+        mistake_count_result = await db.execute(
+            select(UserMistake.user_id, func.count(UserMistake.id))
+            .where(UserMistake.user_id.in_(user_ids))
+            .group_by(UserMistake.user_id)
+        )
+        mistake_count_map = {
+            user_id: count for user_id, count in mistake_count_result.all()
+        }
+
     user_list = []
     for user in users:
-        # 统计用户的题库数
-        exam_count_query = select(func.count(Exam.id)).where(Exam.user_id == user.id)
-        exam_result = await db.execute(exam_count_query)
-        exam_count = exam_result.scalar()
+        user_list.append(
+            AdminUserSummary(
+                id=user.id,
+                username=user.username,
+                is_admin=user.is_admin,
+                created_at=user.created_at,
+                exam_count=exam_count_map.get(user.id, 0),
+                mistake_count=mistake_count_map.get(user.id, 0)
+            )
+        )
 
-        # 统计用户的错题数
-        mistake_count_query = select(func.count(UserMistake.id)).where(UserMistake.user_id == user.id)
-        mistake_result = await db.execute(mistake_count_query)
-        mistake_count = mistake_result.scalar()
-
-        user_list.append({
-            "id": user.id,
-            "username": user.username,
-            "is_admin": user.is_admin,
-            "created_at": user.created_at,
-            "exam_count": exam_count,
-            "mistake_count": mistake_count
-        })
-
-    return {
-        "users": user_list,
-        "total": total,
-        "skip": skip,
-        "limit": limit
-    }
+    return UserListResponse(users=user_list, total=total, skip=skip, limit=limit)
 
 
 @router.post("/users", response_model=UserResponse)
@@ -215,13 +232,31 @@ async def update_user(
             detail="User not found"
         )
 
+    if user_data.username and user_data.username != user.username:
+        existing_user_result = await db.execute(
+            select(User).where(User.username == user_data.username)
+        )
+        existing_user = existing_user_result.scalar_one_or_none()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists"
+            )
+
     protected_admin_id = await get_default_admin_id(db)
+    admin_count = await get_admin_count(db)
 
     # 不允许修改默认管理员的管理员状态
     if protected_admin_id and user.id == protected_admin_id and user_data.is_admin is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot modify default admin user's admin status"
+        )
+
+    if user.is_admin and user_data.is_admin is False and admin_count <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="At least one admin user must remain"
         )
 
     # 更新字段
@@ -236,6 +271,29 @@ async def update_user(
     await db.refresh(user)
 
     return user
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: int,
+    payload: UserPasswordResetRequest,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """重置用户密码（仅管理员）"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    user.hashed_password = pwd_context.hash(payload.new_password)
+    await db.commit()
+
+    return {"message": "Password reset successfully"}
 
 
 @router.delete("/users/{user_id}")
@@ -255,6 +313,7 @@ async def delete_user(
         )
 
     protected_admin_id = await get_default_admin_id(db)
+    admin_count = await get_admin_count(db)
 
     # 不允许删除默认管理员
     if protected_admin_id and user.id == protected_admin_id:
@@ -268,6 +327,12 @@ async def delete_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete yourself"
+        )
+
+    if user.is_admin and admin_count <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="At least one admin user must remain"
         )
 
     await db.delete(user)

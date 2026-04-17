@@ -38,6 +38,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class PasswordChangeRequest(BaseModel):
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6)
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -53,12 +58,21 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class AdminUserSummary(UserResponse):
+    exam_count: int = 0
+    mistake_count: int = 0
+
+
 class UserListResponse(BaseModel):
     """用户列表响应（包含分页信息）"""
-    users: List[dict]  # 包含额外统计信息的用户列表
+    users: List[AdminUserSummary]
     total: int
     skip: int
     limit: int
+
+
+class UserPasswordResetRequest(BaseModel):
+    new_password: str = Field(..., min_length=6)
 
 
 # ============ System Config Schemas ============
@@ -124,6 +138,15 @@ class ExamListResponse(BaseModel):
     total: int
 
 
+class ExamSummaryResponse(BaseModel):
+    total_exams: int
+    total_questions: int
+    completed_questions: int
+    processing_exams: int
+    ready_exams: int
+    failed_exams: int
+
+
 class ExamUploadResponse(BaseModel):
     exam_id: int
     title: str
@@ -140,19 +163,31 @@ class ParseResult(BaseModel):
 
 
 # ============ Question Schemas ============
-class QuestionBase(BaseModel):
+class QuestionPublicBase(BaseModel):
     content: str
     type: QuestionType
     options: Optional[List[str]] = None
-    answer: str
     analysis: Optional[str] = None
+
+
+class QuestionBase(QuestionPublicBase):
+    answer: str
 
 
 class QuestionCreate(QuestionBase):
     exam_id: int
 
 
-class QuestionResponse(QuestionBase):
+class QuestionResponse(QuestionPublicBase):
+    id: int
+    exam_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class QuestionWithAnswerResponse(QuestionBase):
     id: int
     exam_id: int
     created_at: datetime
@@ -194,7 +229,7 @@ class MistakeResponse(BaseModel):
     id: int
     user_id: int
     question_id: int
-    question: QuestionResponse
+    question: QuestionWithAnswerResponse
     created_at: datetime
 
     class Config:

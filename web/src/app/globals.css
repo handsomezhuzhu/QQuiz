@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 25% 98%;
+    --foreground: 220 35% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 35% 12%;
+    --primary: 214 78% 34%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 24% 94%;
+    --secondary-foreground: 220 35% 18%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 220 12% 42%;
+    --accent: 38 85% 92%;
+    --accent-foreground: 220 35% 18%;
+    --destructive: 0 76% 52%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 154 63% 35%;
+    --success-foreground: 155 80% 96%;
+    --warning: 32 88% 45%;
+    --warning-foreground: 36 100% 96%;
+    --border: 214 24% 88%;
+    --input: 214 24% 88%;
+    --ring: 214 78% 34%;
+    --radius: 1.25rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at top left, rgba(99, 142, 214, 0.1), transparent 22%),
+      linear-gradient(180deg, rgba(250, 252, 255, 0.98), rgba(245, 247, 250, 0.98));
+    font-family:
+      "Space Grotesk",
+      "Noto Sans SC",
+      "PingFang SC",
+      "Microsoft YaHei",
+      sans-serif;
+  }
+}

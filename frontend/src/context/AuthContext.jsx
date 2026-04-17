@@ -2,7 +2,7 @@
  * Authentication Context
  */
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { authAPI } from '../api/client'
+import { authAPI, AUTH_TOKEN_STORAGE_KEY, clearAuthStorage } from '../api/client'
 import toast from 'react-hot-toast'
 
 const AuthContext = createContext(null)
@@ -22,15 +22,14 @@ export const AuthProvider = ({ children }) => {
   // Load user from localStorage on mount
   useEffect(() => {
     const loadUser = async () => {
-      const token = localStorage.getItem('access_token')
+      const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
       if (token) {
         try {
           const response = await authAPI.getCurrentUser()
           setUser(response.data)
         } catch (error) {
           console.error('Failed to load user:', error)
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('user')
+          clearAuthStorage()
         }
       }
       setLoading(false)
@@ -45,7 +44,7 @@ export const AuthProvider = ({ children }) => {
       const { access_token } = response.data
 
       // Save token
-      localStorage.setItem('access_token', access_token)
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, access_token)
 
       // Get user info
       const userResponse = await authAPI.getCurrentUser()
@@ -71,8 +70,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const logout = () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('user')
+    clearAuthStorage()
     setUser(null)
     toast.success('Logged out successfully')
   }

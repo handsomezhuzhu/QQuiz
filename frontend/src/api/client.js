@@ -4,9 +4,53 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+export const AUTH_TOKEN_STORAGE_KEY = 'access_token'
+
+const AUTH_USER_STORAGE_KEY = 'user'
+const PUBLIC_REQUEST_PATHS = ['/auth/login', '/auth/register']
+
+const getRequestPath = (config) => {
+  const url = config?.url || ''
+
+  if (!url) return ''
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      return new URL(url).pathname
+    } catch (error) {
+      return url
+    }
+  }
+
+  return url.startsWith('/') ? url : `/${url}`
+}
+
+const isPublicRequest = (config) => {
+  if (config?.skipAuthHandling === true) {
+    return true
+  }
+
+  const path = getRequestPath(config)
+  return PUBLIC_REQUEST_PATHS.some((publicPath) => path.endsWith(publicPath))
+}
+
+export const buildApiUrl = (path) => {
+  const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${base}${normalizedPath}`
+}
+
+export const getAccessToken = () => localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+
+export const clearAuthStorage = () => {
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+  localStorage.removeItem(AUTH_USER_STORAGE_KEY)
+}
+
 // Create axios instance
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
@@ -16,8 +60,9 @@ const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
-    if (token) {
+    const token = getAccessToken()
+    if (token && !isPublicRequest(config)) {
+      config.headers = config.headers || {}
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
@@ -31,19 +76,26 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error.response?.status
     const message = error.response?.data?.detail || 'An error occurred'
+    const requestConfig = error.config || {}
+    const hasAuthHeader = Boolean(
+      requestConfig.headers?.Authorization || requestConfig.headers?.authorization
+    )
 
-    if (error.response?.status === 401) {
-      // Unauthorized - Clear token and redirect to login
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+    if (status === 401 && !isPublicRequest(requestConfig) && hasAuthHeader) {
+      clearAuthStorage()
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
       toast.error('Session expired. Please login again.')
-    } else if (error.response?.status === 403) {
-      toast.error('Permission denied')
-    } else if (error.response?.status === 429) {
+    } else if (status === 401) {
       toast.error(message)
-    } else if (error.response?.status >= 500) {
+    } else if (status === 403) {
+      toast.error('Permission denied')
+    } else if (status === 429) {
+      toast.error(message)
+    } else if (status >= 500) {
       toast.error('Server error. Please try again later.')
     } else {
       toast.error(message)
@@ -56,10 +108,10 @@ api.interceptors.response.use(
 // ============ Auth APIs ============
 export const authAPI = {
   register: (username, password) =>
-    api.post('/auth/register', { username, password }),
+    api.post('/auth/register', { username, password }, { skipAuthHandling: true }),
 
   login: (username, password) =>
-    api.post('/auth/login', { username, password }),
+    api.post('/auth/login', { username, password }, { skipAuthHandling: true }),
 
   getCurrentUser: () =>
     api.get('/auth/me'),
