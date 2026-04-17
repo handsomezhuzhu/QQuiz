@@ -30,36 +30,17 @@ QQuiz/
 │   ├── alembic.ini             # Alembic 配置
 │   └── Dockerfile              # 后端 Docker 镜像
 │
-├── frontend/                   # React 前端
+├── web/                        # Next.js 前端
 │   ├── src/
-│   │   ├── api/
-│   │   │   └── client.js       # API 客户端（Axios）⭐
-│   │   ├── components/
-│   │   │   ├── Layout.jsx      # 主布局（导航栏）
-│   │   │   └── ProtectedRoute.jsx  # 路由保护
-│   │   ├── context/
-│   │   │   └── AuthContext.jsx # 认证上下文
-│   │   ├── pages/
-│   │   │   ├── Login.jsx       # 登录页
-│   │   │   ├── Register.jsx    # 注册页
-│   │   │   ├── Dashboard.jsx   # 仪表盘
-│   │   │   ├── ExamList.jsx    # 题库列表 ⭐
-│   │   │   ├── ExamDetail.jsx  # 题库详情（追加上传）⭐
-│   │   │   ├── QuizPlayer.jsx  # 刷题核心页面 ⭐
-│   │   │   ├── MistakeList.jsx # 错题本
-│   │   │   └── AdminSettings.jsx   # 系统设置
-│   │   ├── utils/
-│   │   │   └── helpers.js      # 工具函数
-│   │   ├── App.jsx             # 应用根组件
-│   │   ├── index.jsx           # 应用入口
-│   │   └── index.css           # 全局样式
-│   ├── public/
-│   │   └── index.html          # HTML 模板
+│   │   ├── app/                # App Router 页面、布局、Route Handlers
+│   │   ├── components/         # 共享 UI 组件
+│   │   ├── lib/                # API、认证、格式化等公共逻辑
+│   │   └── middleware.ts       # 登录态守卫
 │   ├── package.json            # Node 依赖
-│   ├── vite.config.js          # Vite 配置
-│   ├── tailwind.config.js      # Tailwind CSS 配置
-│   ├── postcss.config.js       # PostCSS 配置
-│   └── Dockerfile              # 前端 Docker 镜像
+│   ├── next.config.mjs         # Next.js 配置
+│   ├── tailwind.config.ts      # Tailwind CSS 配置
+│   ├── postcss.config.mjs      # PostCSS 配置
+│   └── Dockerfile              # 分离部署前端镜像
 │
 ├── docker-compose.yml          # Docker 编排配置 ⭐
 ├── .env.example                # 环境变量模板
@@ -133,74 +114,31 @@ for q in questions_data:
 
 ### 前端核心
 
-#### `client.js` - API 客户端
-封装了所有后端 API：
-- `authAPI`: 登录、注册、用户信息
-- `examAPI`: 题库 CRUD、追加文档
-- `questionAPI`: 获取题目、答题
-- `mistakeAPI`: 错题本管理
-- `adminAPI`: 系统配置
+#### `src/lib/api/server.ts` - 服务端 API 访问
+用于 Next Server Components 访问后端：
+- 从 `HttpOnly` Cookie 读取会话令牌
+- 直接请求 FastAPI `/api/*`
+- 401 时自动重定向回登录页
 
-**特性：**
-- 自动添加 JWT Token
-- 统一错误处理和 Toast 提示
-- 401 自动跳转登录
+#### `src/lib/api/browser.ts` - 浏览器端 API 访问
+用于客户端交互：
+- 请求同源 `/frontend-api/proxy/*`
+- 统一处理错误信息
+- 默认禁用缓存，保持刷题和后台状态最新
 
-#### `ExamDetail.jsx` - 题库详情
-最复杂的前端页面，包含：
-- **追加上传**: 上传新文档并去重
-- **状态轮询**: 每 3 秒轮询一次状态
-- **智能按钮**:
-  - 处理中时禁用「添加文档」
-  - 就绪后显示「开始/继续刷题」
-- **进度展示**: 题目数、完成度、进度条
+#### `src/components/exams/exam-detail-client.tsx` - 题库详情
+负责：
+- 追加上传文档
+- 展示解析进度
+- 通过 `/frontend-api/exams/{examId}/progress` 订阅同源 SSE
+- 处理解析完成/失败后的页面刷新
 
-**状态轮询实现：**
-```javascript
-useEffect(() => {
-  const interval = setInterval(() => {
-    pollExamStatus()  // 轮询状态
-  }, 3000)
-
-  return () => clearInterval(interval)
-}, [examId])
-
-const pollExamStatus = async () => {
-  const newExam = await examAPI.getDetail(examId)
-
-  // 检测状态变化
-  if (exam?.status === 'processing' && newExam.status === 'ready') {
-    toast.success('文档解析完成！')
-    await loadExamDetail()  // 重新加载数据
-  }
-
-  setExam(newExam)
-}
-```
-
-#### `QuizPlayer.jsx` - 刷题核心
-实现完整的刷题流程：
-1. 基于 `current_index` 加载当前题目
-2. 根据题型显示不同的答题界面
-3. 提交答案并检查（简答题调用 AI 评分）
-4. 答错自动加入错题本
-5. 点击下一题自动更新进度
-
-**断点续做实现：**
-```javascript
-// 始终基于 exam.current_index 加载题目
-const loadCurrentQuestion = async () => {
-  const question = await questionAPI.getCurrentQuestion(examId)
-  // 后端会根据 current_index 返回对应题目
-}
-
-// 下一题时更新进度
-const handleNext = async () => {
-  const newIndex = exam.current_index + 1
-  await examAPI.updateProgress(examId, newIndex)
-  await loadCurrentQuestion()
-}
-```
+#### `src/components/practice/quiz-player-client.tsx` - 刷题核心
+负责：
+- 加载当前题目
+- 提交答案并展示结果
+- 推进刷题进度
+- 管理简答题与错题练习等交互
 
 ---
 
@@ -323,17 +261,17 @@ CREATE UNIQUE INDEX ix_user_mistakes_unique ON user_mistakes(user_id, question_i
 - **OpenAI/Anthropic/Qwen**: AI 解析和评分
 
 ### 前端
+- **Next.js 14 App Router**: 前端运行时
 - **React 18**: UI 框架
-- **Vite**: 构建工具（比 CRA 更快）
+- **TypeScript**: 类型系统
 - **Tailwind CSS**: 原子化 CSS
-- **Axios**: HTTP 客户端
-- **React Router**: 路由管理
-- **React Hot Toast**: 消息提示
+- **TanStack Query**: 客户端缓存和数据同步
+- **Route Handlers**: 同源认证与代理层
 
 ### 部署
 - **Docker + Docker Compose**: 容器化部署
-- **PostgreSQL 15**: 关系型数据库
-- **Nginx** (可选): 反向代理
+- **SQLite / MySQL**: 关系型数据库
+- **FastAPI reverse proxy**: 单容器模式下代理 Next.js
 
 ---
 

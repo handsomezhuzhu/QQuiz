@@ -47,8 +47,12 @@ export function QuizPlayerClient({
       const [examPayload, questionPayload, mistakesPayload] = await Promise.all([
         browserApi<ExamSummary>(`/exams/${examId}`, { method: "GET" }),
         browserApi<QuestionDetail>(`/questions/exam/${examId}/current`, { method: "GET" }),
-        browserApi<{ mistakes: Array<{ question_id: number }> }>("/mistakes/?skip=0&limit=1000", {
-          method: "GET"
+        browserApi<{ mistakes: Array<{ question_id: number }> }>("/mistakes", {
+          method: "GET",
+          query: {
+            skip: 0,
+            limit: 1000
+          }
         })
       ]);
 

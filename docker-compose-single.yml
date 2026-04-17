@@ -1,8 +1,6 @@
 # ==================== 单容器部署配置 ====================
 # 使用方法：docker-compose -f docker-compose-single.yml up -d
 
-version: '3.8'
-
 services:
   qquiz:
     build:
@@ -34,4 +32,8 @@ services:
 
 volumes:
   qquiz_data:
+    # Reuse the previous split-stack SQLite volume during migration.
+    name: qquiz_sqlite_data
   qquiz_uploads:
+    # Reuse the previous split-stack uploads volume during migration.
+    name: qquiz_upload_files

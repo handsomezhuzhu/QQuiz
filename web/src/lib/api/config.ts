@@ -18,6 +18,6 @@ export function buildProxyUrl(path: string, search?: URLSearchParams) {
   const query = search?.toString();
 
   return query
-    ? `/api/proxy/${normalizedPath}?${query}`
-    : `/api/proxy/${normalizedPath}`;
+    ? `/frontend-api/proxy/${normalizedPath}?${query}`
+    : `/frontend-api/proxy/${normalizedPath}`;
 }

@@ -31,8 +31,12 @@ export function MistakePracticeClient() {
   async function loadMistakes() {
     setLoading(true);
     try {
-      const payload = await browserApi<MistakeListResponse>("/mistakes/?skip=0&limit=1000", {
-        method: "GET"
+      const payload = await browserApi<MistakeListResponse>("/mistakes", {
+        method: "GET",
+        query: {
+          skip: 0,
+          limit: 1000
+        }
       });
 
       let nextMistakes = payload.mistakes;

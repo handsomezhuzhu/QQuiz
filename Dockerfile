@@ -1,51 +1,50 @@
-# ==================== 多阶段构建：前后端整合单容器 ====================
-# Stage 1: 构建前端
-FROM node:18-slim AS frontend-builder
+# ==================== 多阶段构建：单容器运行 FastAPI + Next.js ====================
+# Stage 1: 构建 Next.js 前端
+FROM node:20-slim AS web-builder
 
-WORKDIR /frontend
+WORKDIR /web
 
-# 复制前端依赖文件
-COPY frontend/package*.json ./
-
-# 安装依赖
+COPY web/package*.json ./
 RUN npm ci
 
-# 复制前端源代码
-COPY frontend/ ./
+COPY web/ ./
 
-# 构建前端（生成静态文件到 dist 目录）
+ENV NEXT_TELEMETRY_DISABLED=1
+
 RUN npm run build
 
-# Stage 2: 构建后端并整合前端
-FROM python:3.11-slim
+# Stage 2: 运行 FastAPI + Next.js
+FROM node:20-slim
 
 WORKDIR /app
 
-# 安装操作系统依赖（python-magic 需要 libmagic）
+# 安装 Python 运行时和操作系统依赖
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libmagic1 \
+    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制后端依赖文件
-COPY backend/requirements.txt ./
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# 安装 Python 依赖（使用预编译wheel包，无需gcc）
-RUN pip install -r requirements.txt
+# 安装后端依赖
+COPY backend/requirements.txt ./backend-requirements.txt
+RUN python -m pip install --no-cache-dir -r backend-requirements.txt
 
-# 复制后端代码
+# 复制后端代码和启动脚本
 COPY backend/ ./
+COPY scripts/start_single_container.py ./scripts/start_single_container.py
 
-# 从前端构建阶段复制静态文件到后端 static 目录
-COPY --from=frontend-builder /frontend/build ./static
+# 复制 Next.js standalone 产物
+COPY --from=web-builder /web/.next/standalone ./web
+COPY --from=web-builder /web/.next/static ./web/.next/static
 
 # 创建上传目录
 RUN mkdir -p ./uploads
 
-# 暴露端口
 EXPOSE 8000
 
-# 设置环境变量
 ENV PYTHONUNBUFFERED=1
+ENV NEXT_SERVER_URL=http://127.0.0.1:3000
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# 启动命令
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "scripts/start_single_container.py"]

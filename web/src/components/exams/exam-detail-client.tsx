@@ -37,7 +37,7 @@ export function ExamDetailClient({
       return;
     }
 
-    const source = new EventSource(`/api/exams/${exam.id}/progress`);
+    const source = new EventSource(`/frontend-api/exams/${exam.id}/progress`);
     eventSourceRef.current = source;
 
     source.onmessage = (event) => {

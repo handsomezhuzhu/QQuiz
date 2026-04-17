@@ -1,14 +1,13 @@
 # QQuiz Web
 
-This directory contains the new Next.js frontend scaffold for the QQuiz
-refactor.
+This directory contains the Next.js frontend for QQuiz.
 
 ## Status
 
-- App Router skeleton: added
-- Auth/session proxy routes: added
-- Legacy Vite frontend replacement: in progress
-- shadcn/ui component foundation: added
+- App Router application: active
+- Auth/session proxy routes: active
+- Single-container deployment target: active
+- Split-stack frontend: active
 
 ## Environment
 

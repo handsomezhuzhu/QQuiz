@@ -1,4 +1,4 @@
-name: Build and Publish Docker Images
+name: Build and Publish Single-Container Image
 
 on:
   push:
@@ -18,15 +18,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix:
-        include:
-          - image_suffix: backend
-            context: ./backend
-            file: ./backend/Dockerfile
-          - image_suffix: frontend
-            context: ./web
-            file: ./web/Dockerfile
 
     steps:
       - name: Checkout repository
@@ -46,7 +37,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.image_suffix }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -57,13 +48,13 @@ jobs:
         id: build
         uses: docker/build-push-action@v5
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max,scope=${{ matrix.image_suffix }}
+          cache-to: type=gha,mode=max,scope=single-container
           platforms: linux/amd64,linux/arm64
 
       - name: Image digest

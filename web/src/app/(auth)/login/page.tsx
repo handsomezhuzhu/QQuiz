@@ -9,6 +9,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  getResponseErrorMessage,
+  isRecord,
+  readResponsePayload
+} from "@/lib/api/response";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,7 +27,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/frontend-api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -30,9 +35,13 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password })
       });
 
-      const payload = await response.json();
+      const payload = await readResponsePayload(response);
       if (!response.ok) {
-        throw new Error(payload?.detail || "登录失败");
+        throw new Error(getResponseErrorMessage(payload, "登录失败"));
+      }
+
+      if (!isRecord(payload)) {
+        throw new Error("登录接口返回了无效响应");
       }
 
       toast.success("登录成功");

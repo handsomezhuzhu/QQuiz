@@ -1,4 +1,10 @@
 import { buildProxyUrl } from "@/lib/api/config";
+import {
+  getResponseErrorMessage,
+  getUnexpectedJsonMessage,
+  isRecord,
+  readResponsePayload
+} from "@/lib/api/response";
 
 type BrowserApiOptions = Omit<RequestInit, "body"> & {
   body?: BodyInit | null;
@@ -27,7 +33,8 @@ export async function browserApi<T>(
   options: BrowserApiOptions = {}
 ): Promise<T> {
   const { query, headers, ...init } = options;
-  const response = await fetch(buildProxyUrl(path, buildSearchParams(query)), {
+  const target = buildProxyUrl(path, buildSearchParams(query));
+  const response = await fetch(target, {
     ...init,
     headers: {
       ...(headers || {})
@@ -38,20 +45,18 @@ export async function browserApi<T>(
 
   if (!response.ok) {
     const fallback = `Request failed with status ${response.status}`;
-    try {
-      const data = await response.json();
-      throw new Error(data?.detail || fallback);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error(fallback);
-    }
+    const payload = await readResponsePayload(response);
+    throw new Error(getResponseErrorMessage(payload, fallback));
   }
 
   if (response.status === 204) {
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  const payload = await readResponsePayload(response);
+  if (!isRecord(payload) && !Array.isArray(payload)) {
+    throw new Error(getUnexpectedJsonMessage(response));
+  }
+
+  return payload as T;
 }

@@ -1,70 +1,50 @@
-# Frontend Migration Plan
+# Frontend Cutover Notes
 
 ## Decision
 
-The legacy Vite SPA remains in `frontend/` as a fallback.
+`web/` is now the only frontend in the repository.
 
-The new frontend is being built in `web/` with:
+The previous Vite SPA has been removed so that:
 
-- Next.js App Router
-- TypeScript
-- Tailwind CSS
-- shadcn/ui component model
+- split deployment and single-container deployment use the same UI
+- documentation no longer has to describe two competing frontend stacks
+- future frontend changes only need to be implemented once
 
-The abandoned ESA captcha integration has been removed from the legacy login page.
-
-## Why a Rewrite Instead of an In-Place Port
-
-The legacy frontend mixes too many browser-only assumptions into core runtime
-boundaries:
-
-- token storage in `localStorage`
-- `window.location` redirects inside transport code
-- client-only route protection
-- SSE token passing in query strings
-
-Those patterns do not map cleanly onto Next App Router and server-first auth.
-
-## New Runtime Model
+## Runtime Model
 
 ### Auth
 
-- Login goes through Next route handlers
+- Login goes through Next route handlers under `/frontend-api/auth/*`
 - Backend JWT is stored in an `HttpOnly` cookie
 - Browser code never reads the raw token
 
 ### Data
 
-- Server pages use server-side fetch helpers
-- Client mutations use browser-side fetch helpers against Next proxy routes
-- URL state is used for pagination and filters
+- Server pages use server-side fetch helpers against FastAPI
+- Client mutations use browser-side fetch helpers against `/frontend-api/proxy/*`
+- FastAPI continues to own the public `/api/*` surface
 
 ### Streaming
 
-- Browser connects to a same-origin Next progress route
+- Browser connects to `/frontend-api/exams/{examId}/progress`
 - The route reads the session cookie and proxies backend SSE
-- Backend URL tokens are hidden from the browser
+- Backend token query parameters stay hidden from the browser
 
-## Directory Map
+## Deployment Outcome
 
-```text
-web/
-  src/app/
-  src/components/
-  src/lib/
-  src/middleware.ts
-```
+### Split Stack
 
-## Migration Order
+- `backend` serves API traffic on `:8000`
+- `web` serves Next.js on `:3000`
 
-1. Auth shell, layouts, middleware, and proxy routes
-2. Dashboard, exams list, questions list, and admin overview
-3. Exam detail upload and progress streaming
-4. Quiz and mistake-practice flows
-5. Cutover, smoke testing, and legacy frontend retirement
+### Single Container
 
-## Non-Goals for This First Slice
+- the container runs both FastAPI and Next.js
+- FastAPI stays on `:8000`
+- non-API requests are proxied from FastAPI to the embedded Next server
 
-- No immediate removal of the legacy `frontend/`
-- No backend contract rewrite yet
-- No server actions as the primary data mutation layer
+## Follow-up Expectations
+
+1. New frontend work lands only in `web/`
+2. Single-container smoke tests must validate both UI and API paths
+3. Deployment docs must continue to describe `web/` as the sole frontend

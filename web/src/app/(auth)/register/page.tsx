@@ -9,6 +9,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  getResponseErrorMessage,
+  isRecord,
+  readResponsePayload
+} from "@/lib/api/response";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -21,7 +26,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/proxy/auth/register", {
+      const response = await fetch("/frontend-api/proxy/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -29,9 +34,13 @@ export default function RegisterPage() {
         body: JSON.stringify({ username, password })
       });
 
-      const payload = await response.json();
+      const payload = await readResponsePayload(response);
       if (!response.ok) {
-        throw new Error(payload?.detail || "注册失败");
+        throw new Error(getResponseErrorMessage(payload, "注册失败"));
+      }
+
+      if (!isRecord(payload)) {
+        throw new Error("注册接口返回了无效响应");
       }
 
       toast.success("注册成功，请登录");

@@ -44,8 +44,6 @@ yarn-error.log
 .pnp.js
 
 # Build
-frontend/build/
-frontend/dist/
 .next/
 web/.next/
 web/out/

@@ -10,7 +10,7 @@ export function LogoutButton() {
   const router = useRouter();
 
   async function handleLogout() {
-    const response = await fetch("/api/auth/logout", {
+    const response = await fetch("/frontend-api/auth/logout", {
       method: "POST"
     });
 

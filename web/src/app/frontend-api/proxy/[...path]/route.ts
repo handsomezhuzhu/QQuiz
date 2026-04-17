@@ -34,7 +34,16 @@ async function proxyRequest(
     init.body = await request.arrayBuffer();
   }
 
-  const response = await fetch(target, init);
+  let response: Response;
+  try {
+    response = await fetch(target, init);
+  } catch {
+    return NextResponse.json(
+      { detail: "Backend API is unavailable." },
+      { status: 502 }
+    );
+  }
+
   const responseHeaders = new Headers(response.headers);
   responseHeaders.delete("content-encoding");
   responseHeaders.delete("content-length");

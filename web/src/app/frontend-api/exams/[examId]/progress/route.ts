@@ -16,13 +16,23 @@ export async function GET(
   }
 
   const target = `${buildBackendUrl(`/exams/${params.examId}/progress`)}?token=${encodeURIComponent(token)}`;
-  const response = await fetch(target, {
-    headers: {
-      Accept: "text/event-stream",
-      "Cache-Control": "no-cache"
-    },
-    cache: "no-store"
-  });
+  let response: Response;
+  try {
+    response = await fetch(target, {
+      headers: {
+        Accept: "text/event-stream",
+        "Cache-Control": "no-cache"
+      },
+      cache: "no-store"
+    });
+  } catch {
+    return new NextResponse("Backend API is unavailable.", {
+      status: 502,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8"
+      }
+    });
+  }
 
   if (!response.ok || !response.body) {
     const payload = await response.text();
