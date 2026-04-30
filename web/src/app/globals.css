@@ -4,27 +4,27 @@
 
 @layer base {
   :root {
-    --background: 210 25% 98%;
-    --foreground: 220 35% 12%;
+    --background: 214 32% 97%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 220 35% 12%;
-    --primary: 214 78% 34%;
+    --card-foreground: 222 47% 11%;
+    --primary: 221 83% 42%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 24% 94%;
-    --secondary-foreground: 220 35% 18%;
-    --muted: 210 20% 96%;
-    --muted-foreground: 220 12% 42%;
-    --accent: 38 85% 92%;
-    --accent-foreground: 220 35% 18%;
+    --secondary: 214 32% 93%;
+    --secondary-foreground: 222 47% 16%;
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 16% 43%;
+    --accent: 38 92% 91%;
+    --accent-foreground: 222 47% 16%;
     --destructive: 0 76% 52%;
     --destructive-foreground: 210 40% 98%;
     --success: 154 63% 35%;
     --success-foreground: 155 80% 96%;
     --warning: 32 88% 45%;
     --warning-foreground: 36 100% 96%;
-    --border: 214 24% 88%;
-    --input: 214 24% 88%;
-    --ring: 214 78% 34%;
+    --border: 216 24% 88%;
+    --input: 216 24% 88%;
+    --ring: 221 83% 42%;
     --radius: 1.25rem;
   }
 
@@ -34,14 +34,20 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    min-height: 100vh;
     background-image:
-      radial-gradient(circle at top left, rgba(99, 142, 214, 0.1), transparent 22%),
-      linear-gradient(180deg, rgba(250, 252, 255, 0.98), rgba(245, 247, 250, 0.98));
+      radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.14), transparent 28%),
+      radial-gradient(circle at 92% 12%, rgba(245, 158, 11, 0.14), transparent 24%),
+      linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
     font-family:
       "Space Grotesk",
       "Noto Sans SC",
       "PingFang SC",
       "Microsoft YaHei",
       sans-serif;
+  }
+
+  ::selection {
+    @apply bg-primary/15 text-primary;
   }
 }
